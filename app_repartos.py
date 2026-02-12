@@ -8,83 +8,103 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.0 - Blindada", layout="wide")
+st.set_page_config(page_title="SERGEM v6.1 - Base Completa", layout="wide")
 
-# --- LINK DE IMPLEMENTACIÓN (Asegúrate de que sea el último) ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# Archivos para que NADA se pierda
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
 DB_LOCAL = "registro_diario_respaldo.csv"
 
-# --- FUNCIONES DE MEMORIA (El corazón de la trazabilidad) ---
+# --- FUNCIONES DE MEMORIA ---
 def guardar_memoria(hora):
-    with open(PERSISTENCIA_INI, "w") as f:
-        f.write(hora)
+    with open(PERSISTENCIA_INI, "w") as f: f.write(hora)
 
 def leer_memoria():
     if os.path.exists(PERSISTENCIA_INI):
-        with open(PERSISTENCIA_INI, "r") as f:
-            return f.read()
+        with open(PERSISTENCIA_INI, "r") as f: return f.read()
     return ""
 
 def finalizar_operacion():
-    if os.path.exists(PERSISTENCIA_INI):
-        os.remove(PERSISTENCIA_INI)
-    if os.path.exists(DB_LOCAL):
-        os.remove(DB_LOCAL)
+    if os.path.exists(PERSISTENCIA_INI): os.remove(PERSISTENCIA_INI)
+    if os.path.exists(DB_LOCAL): os.remove(DB_LOCAL)
     st.session_state['hora_referencia'] = ""
-    st.success("Operación finalizada. ¡Buen descanso!")
+    st.success("Operación finalizada correctamente.")
     time.sleep(2)
     st.rerun()
 
-# --- INICIALIZACIÓN ---
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = leer_memoria()
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("⚙️ Menú de Operación")
-    st.info(f"Hora de Referencia Actual: {st.session_state.get('hora_referencia', 'No iniciada')}")
-    st.write("---")
+    st.header("⚙️ Menú")
+    st.info(f"Referencia: {st.session_state.get('hora_referencia', 'Pendiente')}")
     if st.button("🏁 FINALIZAR ENTREGAS DEL DÍA", use_container_width=True, type="primary"):
         finalizar_operacion()
 
-# --- BASE DE DATOS DE TIENDAS ---
-TIENDAS_DATOS = {
+# --- BASE DE DATOS ACTUALIZADA ---
+TIENDAS_POLLOS = {
     'CALI': {
-        'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA HOLGUINES': '2596540', 'CARULLA PANCE': '2594540', 
-        'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540',
-        'CARULLA PUI': '4799540', 'ÉXITO LA FLORA': '2054540', 'SUPER INTER POPULAR': '4210', 'CAÑAVERAL SUR': 'CAN02'
+        'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218',
+        'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223',
+        'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233',
+        'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214',
+        'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799',
+        'ÉXITO CRA OCTAVA (L)': '650', 'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA HOLGUINES': '2596540',
+        'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540'
+    },
+    'MEDELLÍN': {
+        'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452',
+        'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758',
+        'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070',
+        'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557',
+        'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665',
+        'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776',
+        'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778',
+        'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'
+    },
+    'BOGOTÁ': {
+        'ÉXITO EXPRESS EMBAJADA': '110', 'ÉXITO EXPRESS COLSEGUROS (CAF)': '301', 'SURTIMAX BRASIL BOSA': '311',
+        'SURTIMAX CASA BLANCA (CAF)': '434', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450',
+        'ÉXITO EXPRESS BIMA': '459', 'SURTIMAX BARRANCAS': '467', 'CARULLA EXPRESS CEDRITOS': '468',
+        'SURTIMAX NUEVA ROMA': '470', 'SURTIMAX TIBABUYES': '473', 'SURTIMAX TRINITARIA': '474',
+        'SURTIMAX LA GLORIA': '481', 'SURTIMAX SAN FERNANDO': '511', 'CARULLA CALLE 147': '549',
+        'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX TOCANCIPÁ': '573', 'SURTIMAX SAN MATEO': '575',
+        'SURTIMAX CAJICÁ': '576', 'SURTIMAX SOPÓ': '577', 'SURTIMAX COMPARTIR SOACHA': '579',
+        'SURTIMAX SANTA RITA': '623', 'ÉXITO EXPRESS CRA 15 CON 100': '657', 'SURTIMAX LA CALERA': '703',
+        'SURTIMAX YANGUAS': '709', 'SURTIMAX EL SOCORRO': '768', 'SURTIMAX EL RECREO BOSA': '781',
+        'CARULLA LA CALERA': '886', 'ÉXITO PRIMAVERA CALLE 80': '4068', 'ÉXITO PARQUE FONTIBON': '4069',
+        'ÉXITO PRADILLA': '4071', 'ÉXITO CIUDADELA': '4082', 'ÉXITO EXPRESS CRA 24 83-22': '4187',
+        'SURTIMAX CHAPINERO': '4523', 'SURTIMAX LIJACA': '4524', 'SURTIMAX QUIROGA': '4527',
+        'SURTIMAX SUBA BILBAO': '4533', 'SURTIMAX SANTA ISABEL': '4539', 'CARULLA BACATA': '4813',
+        'CARULLA SMARTMARKET': '4814', 'CARULLA LA PRADERA DE POTOSÍ': '4818', 'CARULLA EXPRESS C109 C14': '4822',
+        'CARULLA EXPRESS SIBERIA': '4825', 'CARULLA EXPRESS CALLE 90': '4828', 'CARULLA EXPRESS PONTEVEDRA': '4836',
+        'CARULLA EXPRESS CARRERA 7': '4839', 'CARULLA EXPRESS SALITRE': '4875', 'CARULLA EXPRESS CORFERIAS': '4876'
     },
     'MANIZALES': {
         'CARULLA CABLE PLAZA': '2334540', 'SUPERINTER CRISTO REY': '4301540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805'
-    },
-    'MEDELLÍN': {'ÉXITO CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'SURTIMAX CALDAS': '4534'},
-    'BOGOTÁ': {'CARULLA CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BOSA': '311'}
+    }
 }
+
+CANAVERAL_CALI = ['VILLAGORGONA', 'VILLANUEVA', 'COOTRAEMCALI']
 
 st.title("🛵 Control Maestro SERGEM")
 
-# --- IDENTIFICACIÓN ---
 c1, c2 = st.columns(2)
 with c1: cedula = st.text_input("Cédula:", key="ced")
 with c2: nombre = st.text_input("Nombre:", key="nom").upper()
 
 if cedula and nombre:
-    # SI NO HAY HORA DE INICIO, PEDIRLA (SOLO UNA VEZ AL DÍA)
     if st.session_state['hora_referencia'] == "":
         st.subheader("🕒 Inicio de Jornada")
-        h_ini = st.time_input("Hora de salida de Base:", datetime.now(col_tz))
+        h_ini = st.time_input("Salida de Base:", datetime.now(col_tz))
         if st.button("COMENZAR OPERACIÓN"):
-            hora_texto = h_ini.strftime("%H:%M")
-            st.session_state['hora_referencia'] = hora_texto
-            guardar_memoria(hora_texto)
+            st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
+            guardar_memoria(st.session_state['hora_referencia'])
             st.rerun()
     else:
-        st.success(f"✅ Mensajero: {nombre} | Próximo tiempo desde: {st.session_state['hora_referencia']}")
+        st.success(f"✅ {nombre} | Referencia: {st.session_state['hora_referencia']}")
         
-        # --- FILTROS ---
         f1, f2, f3 = st.columns(3)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"])
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
@@ -92,27 +112,33 @@ if cedula and nombre:
 
         info = None
         if ciudad != "--":
-            tiendas = TIENDAS_DATOS.get(ciudad, {})
-            opciones = ["--"] + sorted(list(tiendas.keys()))
-            
-            if producto == "PANADERÍA":
-                col_p1, col_p2 = st.columns(2)
-                with col_p1: o = st.selectbox("📦 Recoge en:", opciones, key="p_o")
-                with col_p2: d = st.selectbox("🏠 Entrega en:", opciones, key="p_d")
+            # LÓGICA ESPECIAL CAÑAVERAL CALI
+            if ciudad == "CALI" and empresa == "CAÑAVERAL":
+                st.subheader("🏢 Operación Cañaveral")
+                cp1, cp2 = st.columns(2)
+                with cp1: o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="c_o")
+                with cp2: d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="c_d")
                 if o != "--" and d != "--":
-                    info = {"TO": o, "CO": tiendas[o], "TD": d, "CD": tiendas[d]}
+                    info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
+            
+            # LÓGICA NORMAL
             else:
-                t = st.selectbox("🏪 Tienda de Entrega:", opciones, key="p_t")
-                if t != "--":
-                    info = {"TO": t, "CO": tiendas[t], "TD": t, "CD": "N/A"}
+                tiendas = TIENDAS_POLLOS.get(ciudad, {})
+                opciones = ["--"] + sorted(list(tiendas.keys()))
+                if producto == "PANADERÍA":
+                    col1, col2 = st.columns(2)
+                    with col1: o = st.selectbox("📦 Recoge en:", opciones, key="p_o")
+                    with col2: d = st.selectbox("🏠 Entrega en:", opciones, key="p_d")
+                    if o != "--" and d != "--": info = {"TO": o, "CO": tiendas[o], "TD": d, "CD": tiendas[d]}
+                else:
+                    t = st.selectbox("🏪 Tienda de Entrega:", opciones, key="p_t")
+                    if t != "--": info = {"TO": t, "CO": tiendas[t], "TD": t, "CD": "N/A"}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
-                
-                # CÁLCULO DE MINUTOS SEGURO
                 t_ini = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -125,25 +151,19 @@ if cedula and nombre:
                     "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
                 }
                 
-                # 1. Guardar localmente de inmediato (Respaldo)
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
-                
-                # 2. Intentar envío a la nube
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=25)
-                    st.success("¡Datos sincronizados!")
+                    st.success("¡Enviado!")
                 except:
-                    st.warning("Guardado en el celular (Error de señal). Se sincronizará luego.")
+                    st.warning("Guardado local (Sin Internet).")
                 
-                # 3. Actualizar hora de referencia para el SIGUIENTE trayecto
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
                 time.sleep(1.5)
                 st.rerun()
 
-    # --- VISUALIZACIÓN DE TRABAJO DEL DÍA ---
     if os.path.exists(DB_LOCAL):
         st.markdown("---")
-        st.subheader("📋 Resumen de tus Entregas Hoy")
-        df_l = pd.read_csv(DB_LOCAL)
-        st.dataframe(df_l.tail(10), use_container_width=True)
+        st.subheader("📋 Resumen del Día")
+        st.dataframe(pd.read_csv(DB_LOCAL).tail(10), use_container_width=True)
