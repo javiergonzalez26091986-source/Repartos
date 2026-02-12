@@ -5,16 +5,16 @@ import pytz
 import os
 import requests
 
-# Configuración de Zona Horaria Colombia
+# 1. Configuración de Zona Horaria Colombia
 col_tz = pytz.timezone('America/Bogota')
 
-st.set_page_config(page_title="SERGEM - Control Maestro v3.1", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro v3.2", layout="wide")
 
-# --- URL DE TU ÚLTIMA IMPLEMENTACIÓN (13 COLUMNAS) ---
+# --- URL DEFINITIVA (Asegúrate de que sea la de tu última implementación de 13 columnas) ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxBtAsWq2jhnVrqwhGIVXQ8Ue-aKybwZGp5WwvqIa4p5-Bdi7CROvos1dzy1su8_1Lh/exec"
 DB_FILE = "registro_diario.csv"
 
-# --- SIDEBAR: Botón de Reiniciar Recuperado ---
+# --- BARRA LATERAL (SIDEBAR) ---
 with st.sidebar:
     st.header("⚙️ Gestión")
     if st.button("🗑️ REINICIAR JORNADA"):
@@ -23,14 +23,14 @@ with st.sidebar:
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v3.1 - Full Ciudades + Cédula")
+    st.caption("SERGEM App v3.2 | Full Ciudades | Cédula")
 
-# --- DATOS DE RUTAS ---
+# --- BASE DE DATOS DE RUTAS Y TIENDAS ---
 DATA_POLLOS = {
     'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650'},
     'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'},
     'BOGOTÁ': {'CARULLA EXPRESS CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450'},
-    'MANIZALES': {'ÉXITO MANIZALES': '383', 'CARULLA CABLE PLAZA': '2334'} # Agregado para Pollos si aplica
+    'MANIZALES': {'ÉXITO MANIZALES Centro': '383', 'CARULLA CABLE PLAZA': '2334', 'CARULLA SAN MARCEL': '4805'}
 }
 
 RUTAS_PAN = {
@@ -55,6 +55,7 @@ if 'hora_referencia' not in st.session_state:
 
 st.title("🛵 Control Maestro SERGEM")
 
+# --- SECCIÓN 1: IDENTIFICACIÓN ---
 col_id1, col_id2 = st.columns(2)
 with col_id1:
     cedula = st.text_input("Número de Cédula:")
@@ -69,36 +70,44 @@ if cedula and nombre:
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
             st.rerun()
     else:
-        # Banner de registro activo con Cédula
-        st.info(f"✅ **Registro activo:** {nombre} (CC: {cedula}) | Inicio: {st.session_state['hora_referencia']}")
+        st.info(f"👤 **Mensajero:** {nombre} | **CC:** {cedula} | **Inicio:** {st.session_state['hora_referencia']}")
         
+        # --- SECCIÓN 2: DATOS DEL REPARTO ---
         c1, c2 = st.columns(2)
         with c1:
-            # CIUDADES RESTAURADAS
-            ciudad_sel = st.selectbox("📍 Ciudad:", ["--", "CALI", "MEDELLÍN", "BOGOTÁ", "MANIZALES"])
+            ciudad_sel = st.selectbox("📍 Seleccione Ciudad:", ["--", "CALI", "MEDELLÍN", "BOGOTÁ", "MANIZALES"])
         with c2:
-            prod_sel = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
+            prod_sel = st.radio("📦 Seleccione Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
 
-        info = None
+        info_reg = None
         if ciudad_sel != "--":
             if prod_sel == "PANADERÍA":
-                rutas = [f"{r['R']} -> {r['E']}" for r in RUTAS_PAN.get(ciudad_sel, [])]
-                sel = st.selectbox("🛣️ Ruta:", ["--"] + rutas)
-                if sel != "--":
-                    r = RUTAS_PAN[ciudad_sel][rutas.index(sel)]
-                    info = {"O": r['R'], "C1": r['RC'], "D": r['E'], "C2": r['EC']}
+                rutas_disponibles = RUTAS_PAN.get(ciudad_sel, [])
+                opciones = [f"{r['R']} -> {r['E']}" for r in rutas_disponibles]
+                sel_ruta = st.selectbox("🛣️ Seleccione Ruta:", ["--"] + opciones)
+                if sel_ruta != "--":
+                    idx = opciones.index(sel_ruta)
+                    r = rutas_disponibles[idx]
+                    info_reg = {"T_O": r['R'], "C1": r['RC'], "T_D": r['E'], "C2": r['EC']}
+            
             elif prod_sel == "POLLOS":
                 tiendas = DATA_POLLOS.get(ciudad_sel, {})
-                sel = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas.keys()))
-                if sel != "--":
-                    info = {"O": sel, "C1": tiendas[sel], "D": sel, "C2": "N/A"}
+                sel_tienda = st.selectbox("🏪 Seleccione Tienda:", ["--"] + list(tiendas.keys()))
+                if sel_tienda != "--":
+                    info_reg = {"T_O": sel_tienda, "C1": tiendas[sel_tienda], "T_D": sel_tienda, "C2": "N/A"}
 
-        if info:
+        if info_reg:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
+            
+            # --- SECCIÓN 3: ENVÍO ---
             if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
-                duracion = int((datetime.strptime(h_llegada, "%H:%M") - datetime.strptime(st.session_state['hora_referencia'], "%H:%M")).total_seconds() / 60)
+                
+                # Cálculo de minutos transcurridos
+                t1 = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
+                t2 = datetime.strptime(h_llegada, "%H:%M")
+                duracion = int((t2 - t1).total_seconds() / 60)
                 
                 payload = {
                     "Fecha": ahora.strftime("%d/%m/%Y"),
@@ -106,31 +115,37 @@ if cedula and nombre:
                     "Mensajero": nombre,
                     "Ciudad": ciudad_sel,
                     "Producto": prod_sel,
-                    "Tienda": info["O"],      # Tienda Origen
-                    "Cod_Rec": str(info["C1"]),
-                    "Cod_Ent": str(info["C2"]),
-                    "Destino": info["D"],     # Tienda Destino
+                    "Tienda": info_reg["T_O"],    # Columna E
+                    "Cod_Rec": str(info_reg["C1"]), # Columna F
+                    "Cod_Ent": str(info_reg["C2"]), # Columna G
+                    "Destino": info_reg["T_D"],    # Columna H
                     "Cant": int(cant),
                     "Inicio": st.session_state['hora_referencia'],
                     "Llegada": h_llegada,
                     "Minutos": duracion
                 }
                 
-                try:
-                    res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    if "Éxito" in res.text:
-                        st.success("¡Sincronizado!")
-                        st.session_state['hora_referencia'] = h_llegada
-                        pd.DataFrame([payload]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
-                        st.rerun()
-                except:
-                    st.error("Error de conexión")
+                with st.spinner('Sincronizando...'):
+                    try:
+                        res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
+                        if res.status_code == 200 and "Éxito" in res.text:
+                            st.success(f"¡Sincronizado! Entrega registrada en {info_reg['T_D']}")
+                            st.session_state['hora_referencia'] = h_llegada
+                            # Guardado local
+                            pd.DataFrame([payload]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
+                            st.rerun()
+                        else:
+                            st.error(f"Error en el servidor: {res.text}")
+                    except:
+                        st.error("Error de conexión: Los datos no se enviaron. Revisa tu internet.")
 
+    # --- SECCIÓN 4: HISTORIAL LOCAL ---
     if os.path.exists(DB_FILE):
         try:
             df = pd.read_csv(DB_FILE)
             if not df.empty:
                 st.markdown("---")
-                st.subheader("📋 Respaldo local")
+                st.subheader("📋 Respaldo local (Últimos 5)")
                 st.dataframe(df.tail(5), use_container_width=True)
-        except: pass
+        except:
+            pass
