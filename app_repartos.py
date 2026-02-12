@@ -2,123 +2,139 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import requests
 
-st.set_page_config(page_title="Repartos Cali - Doña Yesenia", page_icon="🛵")
+st.set_page_config(page_title="SERGEM - Control Maestro Nube", layout="wide")
 
-# --- CONFIGURACIÓN DE RUTAS ---
-# Nota: En Streamlit Cloud, el archivo se guardará temporalmente en la nube.
-DB_FILE = "base_general_repartos.csv"
+# --- LA LLAVE MAESTRA ACTUALIZADA ---
+URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbz7247cJGrI1TYEse0OjdsUlnqruEGoPRrZTmSki8gtL29bqtH6l7y6FISnS0sjoQI/exec"
+DB_FILE = "registro_diario.csv"
 
-# --- DATOS MAESTROS (Sin tildes para evitar errores en Excel) ---
-DATOS = {
-    'Exito': {'San Fernando': 'EX-001', 'Unicentro': 'EX-002', 'Chipichape': 'EX-003', 'Pasoancho': 'EX-005'},
-    'Canaveral': {'Centenario': 'CA-101', 'Pasoancho': 'CA-102', 'Pance': 'CA-103', 'Limonar': 'CA-105'},
-    'Carulla': {'Pance': 'CR-201', 'San Fernando': 'CR-202', 'El Penon': 'CR-203'}
+# --- BASE DE DATOS DE TIENDAS Y RUTAS ---
+DATA_POLLOS = {
+    'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650'},
+    'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'},
+    'BOGOTÁ': {'CARULLA EXPRESS CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450'}
 }
-MENSAJEROS = ["Carlos Alberto", "Duberney", "Jhon Jairo", "Wilson", "Mauricio"]
 
-# --- GESTIÓN DE SESIÓN ---
-if 'sesion' not in st.session_state:
-    st.session_state['sesion'] = False
+RUTAS_PAN = {
+    'CALI': [
+        {'R': 'CARULLA CIUDAD JARDIN', 'RC': '2732540', 'E': 'CARULLA HOLGUINES', 'EC': '2596540'},
+        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'ÉXITO UNICALI', 'EC': '2054056'},
+        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA CIUDAD JARDIN', 'EC': '2732540'},
+        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA HOLGUINES', 'EC': '2596540'},
+        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'ÉXITO JAMUNDI', 'EC': '2054049'},
+        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA AV COLOMBIA', 'EC': '4219540'},
+        {'R': 'CARULLA CIUDAD JARDIN', 'RC': '2732540', 'E': 'CARULLA PUNTO VERDE', 'EC': '4799540'},
+        {'R': 'CARULLA CIUDAD JARDIN', 'RC': '2732540', 'E': 'CARULLA AV COLOMBIA', 'EC': '4219540'},
+        {'R': 'CARULLA CIUDAD JARDIN', 'RC': '2732540', 'E': 'ÉXITO LA FLORA', 'EC': '2054540'},
+        {'R': 'CARULLA HOLGUINES', 'RC': '2596540', 'E': 'CARULLA PUNTO VERDE', 'EC': '4799540'},
+        {'R': 'CARULLA SAN FERNANDO', 'RC': '2595540', 'E': 'CARULLA AV COLOMBIA', 'EC': '4219540'}
+    ],
+    'MANIZALES': [
+        {'R': 'CARULLA CABLE PLAZA', 'RC': '2334540', 'E': 'SUPERINTER CRISTO REY', 'EC': '4301540'},
+        {'R': 'CARULLA CABLE PLAZA', 'RC': '2334540', 'E': 'SUPERINTER ALTA SUIZA', 'EC': '4302540'},
+        {'R': 'ÉXITO MANIZALES', 'RC': '383', 'E': 'SUPERINTER MANIZALES CENTRO', 'EC': '4273540'},
+        {'R': 'CARULLA SAN MARCEL', 'RC': '4805', 'E': 'CARULLA SAN MARCEL', 'EC': '4805'}
+    ]
+}
+
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = ""
 
-# --- PANTALLA DE LOGIN ---
-if not st.session_state['sesion']:
-    st.title("🔐 Acceso Domiciliarios")
-    nombre_sel = st.selectbox("Seleccione su nombre:", [""] + MENSAJEROS)
-    cedula_sel = st.text_input("Ingrese su número de cédula:", type="password")
-    
-    if st.button("INGRESAR AL SISTEMA"):
-        if nombre_sel != "" and cedula_sel:
-            st.session_state['sesion'] = True
-            st.session_state['nombre'] = nombre_sel
-            st.session_state['cedula'] = cedula_sel
-            st.rerun()
-        else:
-            st.error("Por favor, complete sus datos.")
-else:
-    st.sidebar.title(f"👤 {st.session_state['nombre']}")
-    if st.sidebar.button("Cerrar Sesión"):
-        st.session_state.clear()
+st.title("🛵 Control Maestro SERGEM")
+
+with st.sidebar:
+    st.header("⚙️ Gestión")
+    if st.button("🗑️ REINICIAR DÍA"):
+        if os.path.exists(DB_FILE): os.remove(DB_FILE)
+        st.session_state['hora_referencia'] = ""
         st.rerun()
 
-    st.title("🚚 Registro de Reparto")
+nombre = st.text_input("Nombre del Mensajero:").upper()
 
-    # --- PASO 1: HORA CON DOS PUNTOS PREDETERMINADOS ---
+if nombre:
     if st.session_state['hora_referencia'] == "":
-        st.subheader("Paso 1: Hora de salida CEDI")
-        st.write("Digite la hora de salida de bodega (Formato 24h):")
-        
-        # Columnas para simular HH : MM
-        c1, c2, c3 = st.columns([2, 1, 2])
-        with c1:
-            h_in = st.text_input("HH", max_chars=2, placeholder="06", key="h_input")
-        with c2:
-            # Mostramos los dos puntos fijos en el centro
-            st.markdown("<h3 style='text-align: center; margin-top: 25px;'>:</h3>", unsafe_allow_html=True)
-        with c3:
-            m_in = st.text_input("MM", max_chars=2, placeholder="30", key="m_input")
-        
-        if st.button("FIJAR HORA DE SALIDA"):
-            if h_in.isdigit() and m_in.isdigit() and len(h_in) == 2 and len(m_in) == 2:
-                st.session_state['hora_referencia'] = f"{h_in}:{m_in}"
-                st.rerun()
-            else:
-                st.error("Use 2 números para cada campo (ej: 07 : 00)")
+        st.subheader("🕒 Iniciar Jornada")
+        h_ini = st.time_input("Hora de salida de Base:", datetime.now())
+        if st.button("COMENZAR RECORRIDO"):
+            st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
+            st.rerun()
     else:
-        # --- PASO 2: DATOS DEL PEDIDO (ENCADENADO) ---
-        st.info(f"🕒 Hora de inicio para este pedido: **{st.session_state['hora_referencia']}**")
-        if st.button("🔄 Volví al CEDI (Resetear Hora)"):
-            st.session_state['hora_referencia'] = ""
-            st.rerun()
-
-        st.markdown("---")
+        st.info(f"⏱️ Tiempo cronometrado desde: **{st.session_state['hora_referencia']}**")
         
-        empresa = st.selectbox("Empresa Cliente:", list(DATOS.keys()))
-        sede = st.selectbox("Sede de Entrega:", list(DATOS[empresa].keys()))
-        producto = st.radio("Producto:", ["Pollo", "Pan"], horizontal=True)
-        cantidad = st.number_input("Cantidad de unidades:", min_value=1, step=1)
+        col1, col2 = st.columns(2)
+        with col1:
+            ciudad_sel = st.selectbox("📍 1. Seleccione Ciudad:", ["--", "CALI", "MEDELLÍN", "BOGOTÁ", "MANIZALES"])
+        with col2:
+            producto_sel = st.radio("📦 2. Seleccione Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
 
-        if st.button("GUARDAR REGISTRO ✅", use_container_width=True):
-            ahora = datetime.now()
-            # Cálculo de tiempo desde la salida anterior
-            dt_inicio = datetime.strptime(st.session_state['hora_referencia'], "%H:%M").replace(
-                year=ahora.year, month=ahora.month, day=ahora.day
-            )
-            minutos = int((ahora - dt_inicio).total_seconds() / 60)
-            
-            registro = {
-                "Fecha": ahora.strftime("%d/%m/%Y"),
-                "Cedula": st.session_state['cedula'],
-                "Mensajero": st.session_state['nombre'],
-                "Empresa": empresa,
-                "Sede": sede,
-                "Codigo": DATOS[empresa][sede],
-                "Producto": producto,
-                "Cantidad": cantidad,
-                "Salida": st.session_state['hora_referencia'],
-                "Entrega": ahora.strftime("%H:%M"),
-                "Minutos": minutos
-            }
-            
-            # Guardado Local/Nube
-            df_nuevo = pd.DataFrame([registro])
-            archivo_existe = os.path.exists(DB_FILE)
-            df_nuevo.to_csv(DB_FILE, mode='a', index=False, header=not archivo_existe, encoding='utf-8-sig')
-            
-            # ACTUALIZACIÓN AUTOMÁTICA: La entrega de hoy es la salida de la próxima
-            st.session_state['hora_referencia'] = ahora.strftime("%H:%M")
-            st.success(f"¡Pedido guardado! Próxima salida: {st.session_state['hora_referencia']}")
-            st.rerun()
+        info_reg = None
 
-    # --- HISTORIAL INDIVIDUAL ---
+        if ciudad_sel != "--":
+            if producto_sel == "PANADERÍA":
+                if ciudad_sel in RUTAS_PAN:
+                    rutas = RUTAS_PAN[ciudad_sel]
+                    opciones = [f"Rec: {r['R']} -> Ent: {r['E']}" for r in rutas]
+                    sel_ruta = st.selectbox("🛣️ 3. Seleccione Ruta:", ["--"] + opciones)
+                    if sel_ruta != "--":
+                        idx = opciones.index(sel_ruta)
+                        r = rutas[idx]
+                        info_reg = {"Tienda": f"{r['R']} a {r['E']}", "C1": r['RC'], "C2": r['EC']}
+                else:
+                    st.warning(f"No hay rutas de Panadería para {ciudad_sel}")
+            
+            elif producto_sel == "POLLOS":
+                tiendas = DATA_POLLOS.get(ciudad_sel, {})
+                if tiendas:
+                    sel_tienda = st.selectbox("🏪 3. Seleccione Tienda:", ["--"] + list(tiendas.keys()))
+                    if sel_tienda != "--":
+                        info_reg = {"Tienda": sel_tienda, "C1": tiendas[sel_tienda], "C2": "N/A"}
+
+        if info_reg:
+            cant = st.number_input("Cantidad:", min_value=1, step=1)
+            if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
+                ahora = datetime.now()
+                hora_llegada = ahora.strftime("%H:%M")
+                
+                t1 = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
+                t2 = datetime.strptime(hora_llegada, "%H:%M")
+                duracion = int((t2 - t1).total_seconds() / 60)
+                
+                # Diccionario con los nombres exactos que espera el Apps Script
+                datos = {
+                    "Fecha": ahora.strftime("%d/%m/%Y"),
+                    "Mensajero": nombre,
+                    "Ciudad": ciudad_sel,
+                    "Producto": producto_sel,
+                    "Tienda": info_reg["Tienda"],
+                    "Cod_Rec": str(info_reg["C1"]),
+                    "Cod_Ent": str(info_reg["C2"]),
+                    "Cant": int(cant),
+                    "Inicio": st.session_state['hora_referencia'],
+                    "Llegada": hora_llegada,
+                    "Minutos": int(duracion)
+                }
+                
+                # ENVÍO AL GOOGLE SHEETS
+                with st.spinner('Sincronizando con la nube...'):
+                    try:
+                        response = requests.post(URL_GOOGLE_SCRIPT, json=datos, timeout=15)
+                        if response.status_code == 200 and "Éxito" in response.text:
+                            st.success("¡Datos sincronizados correctamente!")
+                        else:
+                            st.error(f"Error de respuesta: {response.text}")
+                    except Exception as e:
+                        st.error(f"Error de conexión: {e}")
+
+                # Guardado Local de respaldo
+                df_local = pd.DataFrame([datos])
+                df_local.to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE), encoding='utf-8-sig')
+                
+                st.session_state['hora_referencia'] = hora_llegada
+                st.rerun()
+
     if os.path.exists(DB_FILE):
         st.markdown("---")
-        df_dia = pd.read_csv(DB_FILE)
-        st.subheader("📋 Mi actividad de hoy")
-        mis_datos = df_dia[df_dia['Cedula'].astype(str) == str(st.session_state['cedula'])]
-        st.dataframe(mis_datos, use_container_width=True)
-        
-        with open(DB_FILE, "rb") as file:
-            st.download_button("📥 Descargar Reporte (CSV)", data=file, file_name="repartos_diarios.csv", mime="text/csv")
+        st.subheader("📋 Últimos registros (Local)")
+        st.dataframe(pd.read_csv(DB_FILE).tail(5), use_container_width=True)
