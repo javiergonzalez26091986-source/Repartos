@@ -7,9 +7,9 @@ import requests
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM - Control Maestro v3.8", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro v3.9", layout="wide")
 
-# --- NUEVOS LINKS DE IMPLEMENTACIÓN ---
+# --- LINKS DE IMPLEMENTACIÓN ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxYzRm6O2lkLCYwwnGjnlPc83gp40pEQ-S0Rj2znpvlHNk3e_lKZt7iGJydxOrr70s/exec"
 DB_FILE = "registro_diario.csv"
 
@@ -21,9 +21,9 @@ with st.sidebar:
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v3.8 - Grupos Empresariales Activos")
+    st.caption("v3.9 - Panadería: Origen/Destino Separados")
 
-# --- BASE DE DATOS DE TIENDAS POR GRUPO ---
+# --- BASE DE DATOS DE TIENDAS ---
 EMPRESAS_TIENDAS = {
     'EXITO-CARULLA-SUPERINTER-SURTIMAX': {
         'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO PLAZA BOLIVAR': '558',
@@ -47,7 +47,7 @@ if 'hora_referencia' not in st.session_state:
 
 st.title("🛵 Control Maestro SERGEM")
 
-# --- SECCIÓN 1: IDENTIFICACIÓN ---
+# --- IDENTIFICACIÓN ---
 col_id1, col_id2 = st.columns(2)
 with col_id1:
     cedula = st.text_input("Número de Cédula:")
@@ -64,23 +64,42 @@ if cedula and nombre:
     else:
         st.success(f"✅ Mensajero: **{nombre}** | Inicio: **{st.session_state['hora_referencia']}**")
         
-        # --- SECCIÓN 2: SELECCIÓN DE CLIENTE ---
+        # --- SECCIÓN DE PRODUCTO Y EMPRESA ---
         c1, c2 = st.columns(2)
         with c1:
-            empresa_sel = st.selectbox("🏢 Seleccione Empresa/Grupo:", ["--"] + list(EMPRESAS_TIENDAS.keys()))
+            prod_sel = st.radio("📦 Seleccione Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
         with c2:
-            prod_sel = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
+            empresa_sel = st.selectbox("🏢 Seleccione Empresa/Grupo:", ["--"] + list(EMPRESAS_TIENDAS.keys()))
 
         info = None
         if empresa_sel != "--":
-            # Buscador predictivo de tiendas basado en la empresa
             tiendas_dict = EMPRESAS_TIENDAS[empresa_sel]
             opciones_tienda = ["--"] + sorted(list(tiendas_dict.keys()))
             
-            sel_tienda = st.selectbox("🏪 Busque y seleccione la Tienda:", opciones_tienda)
-            
-            if sel_tienda != "--":
-                info = {"O": sel_tienda, "C1": tiendas_dict[sel_tienda]}
+            # --- LÓGICA DIFERENCIADA POR PRODUCTO ---
+            if prod_sel == "PANADERÍA":
+                st.markdown("---")
+                st.subheader("🥖 Ruta de Panadería")
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    origen = st.selectbox("📦 Recoge en (Origen):", opciones_tienda, key="orig_pan")
+                with col_p2:
+                    destino = st.selectbox("🏠 Entrega en (Destino):", opciones_tienda, key="dest_pan")
+                
+                if origen != "--" and destino != "--":
+                    info = {
+                        "Tienda_O": origen, "Cod_O": tiendas_dict[origen],
+                        "Tienda_D": destino, "Cod_D": tiendas_dict[destino]
+                    }
+            else:
+                st.markdown("---")
+                st.subheader("🍗 Entrega de Pollos")
+                sel_tienda = st.selectbox("🏪 Tienda de Entrega:", opciones_tienda, key="pollos_sel")
+                if sel_tienda != "--":
+                    info = {
+                        "Tienda_O": sel_tienda, "Cod_O": tiendas_dict[sel_tienda],
+                        "Tienda_D": sel_tienda, "Cod_D": "N/A"
+                    }
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
@@ -90,20 +109,20 @@ if cedula and nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de tiempo
                 t_ref = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t_lleg = datetime.strptime(h_llegada, "%H:%M")
                 duracion = int((t_lleg - t_ref).total_seconds() / 60)
                 
-                # Preparamos el envío (Asegúrate que el AppScript reciba estos nombres)
                 payload = {
                     "Fecha": ahora.strftime("%d/%m/%Y"),
                     "Cedula": cedula, 
                     "Mensajero": nombre, 
                     "Empresa": empresa_sel, 
                     "Producto": prod_sel, 
-                    "Tienda": info["O"], 
-                    "Cod_Rec": str(info["C1"]),
+                    "Tienda": info["Tienda_O"],  # Envía el origen
+                    "Cod_Rec": str(info["Cod_O"]),
+                    "Destino": info["Tienda_D"], # Envía el destino
+                    "Cod_Ent": str(info["Cod_D"]),
                     "Inicio": st.session_state['hora_referencia'], 
                     "Llegada": h_llegada, 
                     "Minutos": duracion
@@ -112,22 +131,19 @@ if cedula and nombre:
                 try:
                     res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                     if "Éxito" in res.text:
-                        msg_status.success(f"¡Guardado! Destino: {info['O']}")
+                        msg_status.success(f"¡Guardado! De {info['Tienda_O']} a {info['Tienda_D']}")
                         st.session_state['hora_referencia'] = h_llegada
-                        # Guardado local de respaldo
                         pd.DataFrame([payload]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
                         st.rerun()
                     else:
-                        msg_status.error(f"Error en servidor: {res.text}")
+                        msg_status.error(f"Error: {res.text}")
                 except Exception:
-                    msg_status.error("Falla de conexión. Revisa tu internet.")
+                    msg_status.error("Falla de conexión.")
 
-    # Respaldo visual
     if os.path.exists(DB_FILE):
         try:
-            df = pd.read_csv(DB_FILE)
-            if not df.empty:
-                st.markdown("---")
-                st.subheader("📋 Últimos registros (Local)")
-                st.dataframe(df.tail(5), use_container_width=True)
-        except Exception: pass
+            df = pd.read_csv(DB_FILE).tail(5)
+            st.markdown("---")
+            st.subheader("📋 Últimos registros")
+            st.dataframe(df, use_container_width=True)
+        except: pass
