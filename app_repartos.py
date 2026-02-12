@@ -46,7 +46,7 @@ RUTAS_PAN = {
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = ""
 
-st.title("🛵 Control Maestro SERGEM (Colombia Time)")
+st.title("🛵 Control Maestro SERGEM")
 
 with st.sidebar:
     st.header("⚙️ Gestión")
@@ -60,7 +60,6 @@ nombre = st.text_input("Nombre del Mensajero:").upper()
 if nombre:
     if st.session_state['hora_referencia'] == "":
         st.subheader("🕒 Iniciar Jornada")
-        # Aquí forzamos la hora de Colombia al abrir la app
         h_ini = st.time_input("Hora de salida de Base:", datetime.now(col_tz))
         if st.button("COMENZAR RECORRIDO"):
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
@@ -85,13 +84,15 @@ if nombre:
                     if sel_ruta != "--":
                         idx = opciones.index(sel_ruta)
                         r = rutas[idx]
-                        info_reg = {"Tienda": f"{r['R']} a {r['E']}", "C1": r['RC'], "C2": r['EC']}
+                        # Tienda mostrará la ruta completa: Origen a Destino
+                        info_reg = {"Tienda": f"{r['R']} -> {r['E']}", "C1": r['RC'], "C2": r['EC']}
             
             elif producto_sel == "POLLOS":
                 tiendas = DATA_POLLOS.get(ciudad_sel, {})
                 if tiendas:
                     sel_tienda = st.selectbox("🏪 3. Seleccione Tienda:", ["--"] + list(tiendas.keys()))
                     if sel_tienda != "--":
+                        # Tienda mostrará el nombre seleccionado directamente
                         info_reg = {"Tienda": sel_tienda, "C1": tiendas[sel_tienda], "C2": "N/A"}
 
         if info_reg:
@@ -100,7 +101,6 @@ if nombre:
                 ahora = datetime.now(col_tz)
                 hora_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de duración
                 t1 = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t2 = datetime.strptime(hora_llegada, "%H:%M")
                 duracion = int((t2 - t1).total_seconds() / 60)
@@ -110,7 +110,7 @@ if nombre:
                     "Mensajero": nombre,
                     "Ciudad": ciudad_sel,
                     "Producto": producto_sel,
-                    "Tienda": info_reg["Tienda"],
+                    "Tienda": info_reg["Tienda"],  # <--- Aquí ya enviamos el nombre claro
                     "Cod_Rec": str(info_reg["C1"]),
                     "Cod_Ent": str(info_reg["C2"]),
                     "Cant": int(cant),
@@ -125,8 +125,6 @@ if nombre:
                         if response.status_code == 200:
                             st.success("¡Datos enviados a la nube!")
                             st.session_state['hora_referencia'] = hora_llegada
-                            
-                            # Guardado local opcional
                             pd.DataFrame([datos]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
                             st.rerun()
                         else:
@@ -134,7 +132,13 @@ if nombre:
                     except Exception as e:
                         st.error(f"Error de conexión: {e}")
 
+    # Bloque de respaldo local con protección contra archivos vacíos
     if os.path.exists(DB_FILE):
         st.markdown("---")
         st.subheader("📋 Respaldo local")
-        st.dataframe(pd.read_csv(DB_FILE).tail(5), use_container_width=True)
+        try:
+            df_historial = pd.read_csv(DB_FILE)
+            if not df_historial.empty:
+                st.dataframe(df_historial.tail(5), use_container_width=True)
+        except:
+            pass
