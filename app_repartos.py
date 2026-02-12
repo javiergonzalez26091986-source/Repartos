@@ -21,31 +21,29 @@ with st.sidebar:
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v3.4 - Estabilidad Total")
+    st.caption("v3.6 - Panadería Flexible + Buscador")
 
-# --- BASE DE DATOS DE RUTAS ---
-DATA_POLLOS = {
-    'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650'},
-    'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'},
-    'BOGOTÁ': {'CARULLA EXPRESS CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450'},
-    'MANIZALES': {'ÉXITO MANIZALES Centro': '383', 'CARULLA CABLE PLAZA': '2334', 'CARULLA SAN MARCEL': '4805'}
-}
-
-RUTAS_PAN = {
-    'CALI': [
-        {'R': 'CARULLA CIUDAD JARDIN', 'RC': '2732540', 'E': 'CARULLA HOLGUINES', 'EC': '2596540'},
-        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'ÉXITO UNICALI', 'EC': '2054056'},
-        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA CIUDAD JARDIN', 'EC': '2732540'},
-        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA HOLGUINES', 'EC': '2596540'},
-        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'ÉXITO JAMUNDI', 'EC': '2054049'},
-        {'R': 'CARULLA PANCE', 'RC': '2594540', 'E': 'CARULLA AV COLOMBIA', 'EC': '4219540'}
-    ],
-    'MANIZALES': [
-        {'R': 'CARULLA CABLE PLAZA', 'RC': '2334540', 'E': 'SUPERINTER CRISTO REY', 'EC': '4301540'},
-        {'R': 'CARULLA CABLE PLAZA', 'RC': '2334540', 'E': 'SUPERINTER ALTA SUIZA', 'EC': '4302540'},
-        {'R': 'ÉXITO MANIZALES', 'RC': '383', 'E': 'SUPERINTER MANIZALES CENTRO', 'EC': '4273540'},
-        {'R': 'CARULLA SAN MARCEL', 'RC': '4805', 'E': 'CARULLA SAN MARCEL', 'EC': '4805'}
-    ]
+# --- BASE DE DATOS UNIFICADA ---
+TIENDAS_POR_CIUDAD = {
+    'CALI': {
+        'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 
+        'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 
+        'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650', 'CARULLA CIUDAD JARDIN': '2732540',
+        'CARULLA HOLGUINES': '2596540', 'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 
+        'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540'
+    },
+    'MEDELLÍN': {
+        'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 
+        'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'
+    },
+    'BOGOTÁ': {
+        'CARULLA EXPRESS CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BRASIL BOSA': '311', 
+        'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450'
+    },
+    'MANIZALES': {
+        'ÉXITO MANIZALES Centro': '383', 'CARULLA CABLE PLAZA': '2334', 'CARULLA SAN MARCEL': '4805',
+        'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER MANIZALES CENTRO': '4273540'
+    }
 }
 
 if 'hora_referencia' not in st.session_state:
@@ -53,6 +51,7 @@ if 'hora_referencia' not in st.session_state:
 
 st.title("🛵 Control Maestro SERGEM")
 
+# --- IDENTIFICACIÓN ---
 cedula = st.text_input("Número de Cédula:")
 nombre = st.text_input("Nombre del Mensajero:").upper()
 
@@ -64,7 +63,7 @@ if cedula and nombre:
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
             st.rerun()
     else:
-        st.info(f"✅ Registro para: **{nombre}** | Inicio: **{st.session_state['hora_referencia']}**")
+        st.success(f"✅ Registro para: **{nombre}** | Inicio: **{st.session_state['hora_referencia']}**")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -74,29 +73,37 @@ if cedula and nombre:
 
         info = None
         if ciudad_sel != "--":
+            tiendas_dict = TIENDAS_POR_CIUDAD.get(ciudad_sel, {})
+            opciones = ["--"] + sorted(list(tiendas_dict.keys()))
+            
             if prod_sel == "PANADERÍA":
-                rutas = [f"{r['R']} -> {r['E']}" for r in RUTAS_PAN.get(ciudad_sel, [])]
-                sel = st.selectbox("🛣️ Ruta:", ["--"] + rutas)
-                if sel != "--":
-                    r = RUTAS_PAN[ciudad_sel][rutas.index(sel)]
-                    info = {"O": r['R'], "C1": r['RC'], "D": r['E'], "C2": r['EC']}
-            elif prod_sel == "POLLOS":
-                tiendas = DATA_POLLOS.get(ciudad_sel, {})
-                sel = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas.keys()))
-                if sel != "--":
-                    info = {"O": sel, "C1": tiendas[sel], "D": sel, "C2": "N/A"}
+                # Selección libre de Origen y Destino para Panadería
+                st.markdown("### 🥖 Configuración de Ruta")
+                origen = st.selectbox("🏬 Punto de Recogida (Origen):", opciones, key="orig_pan")
+                destino = st.selectbox("🏪 Punto de Entrega (Destino):", opciones, key="dest_pan")
+                
+                if origen != "--" and destino != "--":
+                    info = {
+                        "O": origen, "C1": tiendas_dict[origen],
+                        "D": destino, "C2": tiendas_dict[destino]
+                    }
+            else:
+                # Selección única para Pollos
+                sel_tienda = st.selectbox("🏪 Tienda/Cliente:", opciones, key="pollos_sel")
+                if sel_tienda != "--":
+                    info = {
+                        "O": sel_tienda, "C1": tiendas_dict[sel_tienda],
+                        "D": sel_tienda, "C2": "N/A"
+                    }
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
-            
-            # ESPACIO PARA MENSAJES
             msg_status = st.empty()
             
             if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de minutos
                 t_ref = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t_lleg = datetime.strptime(h_llegada, "%H:%M")
                 duracion = int((t_lleg - t_ref).total_seconds() / 60)
@@ -111,7 +118,7 @@ if cedula and nombre:
                 try:
                     res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                     if "Éxito" in res.text:
-                        msg_status.success(f"¡Sincronizado! Destino: {info['D']}")
+                        msg_status.success(f"¡Sincronizado! De {info['O']} a {info['D']}")
                         st.session_state['hora_referencia'] = h_llegada
                         pd.DataFrame([payload]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
                         st.rerun()
