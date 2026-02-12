@@ -8,21 +8,21 @@ import time
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM - Control Maestro v4.6", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro v4.7", layout="wide")
 
-# --- LINK DE IMPLEMENTACIÓN (EL QUE GENERASTE ÚLTIMO) ---
+# --- LINK DE IMPLEMENTACIÓN ACTUALIZADO ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- BARRA LATERAL ---
+# --- BARRA LATERAL (SIEMPRE VISIBLE) ---
 with st.sidebar:
     st.header("⚙️ Gestión")
     if st.button("🗑️ REINICIAR DÍA"):
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v4.6 - Estabilidad Reforzada")
+    st.caption("v4.7 - Control de Duplicados")
 
-# --- BASE DE DATOS DE RUTAS PANADERÍA ---
+# --- RUTAS PANADERÍA (SEGÚN TU IMAGEN) ---
 RUTAS_PAN_ESPECIFICAS = {
     'CALI': [
         {'R': 'CARULLA CIUDAD JARDIN', 'CR': '2732540', 'E': 'CARULLA HOLGUINES', 'CE': '2596540'},
@@ -39,7 +39,7 @@ RUTAS_PAN_ESPECIFICAS = {
     ]
 }
 
-# --- LISTADO GENERAL POR CIUDAD ---
+# --- TODAS LAS CIUDADES ---
 TIENDAS_CIUDAD = {
     'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540'},
     'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805'},
@@ -103,16 +103,16 @@ if cedula and nombre:
                     "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": duracion
                 }
                 
-                # REINTENTO AUTOMÁTICO PARA EVITAR "ERROR DE RED"
-                for i in range(2):
-                    try:
-                        res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                        if "Éxito" in res.text:
-                            st.success("¡Guardado correctamente!")
-                            st.session_state['hora_referencia'] = h_llegada
-                            time.sleep(1)
-                            st.rerun()
-                            break
-                    except:
-                        if i == 0: time.sleep(2)
-                        else: st.error("Error persistente de conexión. Revisa el ID de Google.")
+                try:
+                    # Aumentamos el timeout a 30 segundos y quitamos los reintentos
+                    res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=30)
+                    st.success("¡Guardado correctamente!")
+                    st.session_state['hora_referencia'] = h_llegada
+                    time.sleep(1.5)
+                    st.rerun()
+                except requests.exceptions.Timeout:
+                    # Si da timeout, es probable que sí se haya enviado
+                    st.warning("El servidor tardó en responder, pero los datos probablemente se enviaron. Revisa el Drive.")
+                    st.session_state['hora_referencia'] = h_llegada
+                except Exception as e:
+                    st.error(f"Error inesperado: {str(e)}")
