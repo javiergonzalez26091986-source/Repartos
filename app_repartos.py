@@ -8,49 +8,46 @@ import time
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM - Control Maestro v4.7", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro v4.8", layout="wide")
 
-# --- LINK DE IMPLEMENTACIÓN ACTUALIZADO ---
-URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
+# --- LINK DE IMPLEMENTACIÓN ---
+URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- BARRA LATERAL (SIEMPRE VISIBLE) ---
+# --- BARRA LATERAL (REINICIAR SIEMPRE DISPONIBLE) ---
 with st.sidebar:
     st.header("⚙️ Gestión")
     if st.button("🗑️ REINICIAR DÍA"):
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v4.7 - Control de Duplicados")
+    st.caption("v4.8 - Selectores Independientes")
 
-# --- RUTAS PANADERÍA (SEGÚN TU IMAGEN) ---
-RUTAS_PAN_ESPECIFICAS = {
-    'CALI': [
-        {'R': 'CARULLA CIUDAD JARDIN', 'CR': '2732540', 'E': 'CARULLA HOLGUINES', 'CE': '2596540'},
-        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'ÉXITO UNICALI', 'CE': '2054056'},
-        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA CIUDAD JARDIN', 'CE': '2732540'},
-        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA HOLGUINES', 'CE': '2596540'},
-        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'ÉXITO JAMUNDI', 'CE': '2054049'},
-        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA AV COLOMBIA', 'CE': '4219540'}
-    ],
-    'MANIZALES': [
-        {'R': 'CARULLA CABLE PLAZA', 'CR': '2334540', 'E': 'SUPERINTER CRISTO REY', 'CE': '4301540'},
-        {'R': 'CARULLA CABLE PLAZA', 'CR': '2334540', 'E': 'SUPERINTER ALTA SUIZA', 'CE': '4302540'},
-        {'R': 'ÉXITO MANIZALES', 'CR': '383', 'E': 'SUPERINTER MANIZALES CENTRO', 'CE': '4273540'}
-    ]
-}
-
-# --- TODAS LAS CIUDADES ---
+# --- BASE DE DATOS COMPLETA DE TIENDAS Y CÓDIGOS ---
 TIENDAS_CIUDAD = {
-    'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540'},
-    'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805'},
-    'MEDELLÍN': {'ÉXITO CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'SURTIMAX CALDAS': '4534'},
-    'BOGOTÁ': {'CARULLA CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BOSA': '311'}
+    'CALI': {
+        'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA HOLGUINES': '2596540', 'CARULLA PANCE': '2594540', 
+        'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540',
+        'CARULLA PUI': '4799540', 'ÉXITO LA FLORA': '2054540', 'CARULLA SANTA RITA': '2595540',
+        'CARULLA LA MARIA': '4781540', 'SUPER INTER POPULAR': '4210', 'CAÑAVERAL PASOANCHO': 'CAN01'
+    },
+    'MANIZALES': {
+        'CARULLA CABLE PLAZA': '2334540', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540',
+        'SUPERINTER VILLA PILAR': '4303540', 'ÉXITO MANIZALES': '383', 'SUPERINTER CENTRO': '4273540',
+        'SUPERINTER PLAZA': '4279540', 'SUPERINTER TORRES': '4280540', 'CARULLA SAN MARCEL': '4805'
+    },
+    'MEDELLÍN': {
+        'ÉXITO CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'SURTIMAX CALDAS': '4534', 'ÉXITO GARDEL': '4070'
+    },
+    'BOGOTÁ': {
+        'CARULLA CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX BOSA': '311', 'SURTIMAX LA ESPAÑOLA': '449'
+    }
 }
 
 if 'hora_referencia' not in st.session_state: st.session_state['hora_referencia'] = ""
 
 st.title("🛵 Control Maestro SERGEM")
 
+# --- IDENTIFICACIÓN ---
 c1, c2 = st.columns(2)
 with c1: cedula = st.text_input("Cédula:", key="ced")
 with c2: nombre = st.text_input("Nombre:", key="nom").upper()
@@ -63,6 +60,8 @@ if cedula and nombre:
             st.rerun()
     else:
         st.success(f"✅ Mensajero: {nombre} | Inicio: {st.session_state['hora_referencia']}")
+        
+        # --- FILTROS ---
         f1, f2, f3 = st.columns(3)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"])
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
@@ -70,24 +69,27 @@ if cedula and nombre:
 
         info = None
         if ciudad != "--":
-            if producto == "PANADERÍA" and ciudad in RUTAS_PAN_ESPECIFICAS:
-                rutas = RUTAS_PAN_ESPECIFICAS[ciudad]
-                opciones = [f"{r['R']} -> {r['E']}" for r in rutas]
-                sel = st.selectbox("Seleccione Trayecto:", ["--"] + opciones)
-                if sel != "--":
-                    idx = opciones.index(sel)
-                    info = {"TO": rutas[idx]['R'], "CO": rutas[idx]['CR'], "TD": rutas[idx]['E'], "CD": rutas[idx]['CE']}
+            tiendas = TIENDAS_CIUDAD.get(ciudad, {})
+            opciones_t = ["--"] + sorted(list(tiendas.keys()))
+            
+            # --- LÓGICA DE SELECTORES INDEPENDIENTES PARA PANADERÍA ---
+            if producto == "PANADERÍA":
+                st.subheader("🥖 Ruta Flexible de Panadería")
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    orig = st.selectbox("📦 Recoge en:", opciones_t, key="pan_orig")
+                with col_p2:
+                    dest = st.selectbox("🏠 Entrega en:", opciones_t, key="pan_dest")
+                
+                if orig != "--" and dest != "--":
+                    info = {"TO": orig, "CO": tiendas[orig], "TD": dest, "CD": tiendas[dest]}
+            
+            # --- LÓGICA DE TIENDA ÚNICA PARA POLLOS ---
             else:
-                tiendas = TIENDAS_CIUDAD.get(ciudad, {})
-                op_t = ["--"] + sorted(list(tiendas.keys()))
-                if producto == "PANADERÍA":
-                    col1, col2 = st.columns(2)
-                    with col1: o = st.selectbox("Recoge en:", op_t, key="pan_o")
-                    with col2: d = st.selectbox("Entrega en:", op_t, key="pan_d")
-                    if o != "--" and d != "--": info = {"TO": o, "CO": tiendas[o], "TD": d, "CD": tiendas[d]}
-                else:
-                    t = st.selectbox("Tienda Entrega:", op_t)
-                    if t != "--": info = {"TO": t, "CO": tiendas[t], "TD": t, "CD": "N/A"}
+                st.subheader("🍗 Entrega de Pollos")
+                tienda = st.selectbox("🏪 Tienda:", opciones_t, key="pol_t")
+                if tienda != "--":
+                    info = {"TO": tienda, "CO": tiendas[tienda], "TD": tienda, "CD": "N/A"}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
@@ -104,15 +106,11 @@ if cedula and nombre:
                 }
                 
                 try:
-                    # Aumentamos el timeout a 30 segundos y quitamos los reintentos
                     res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=30)
-                    st.success("¡Guardado correctamente!")
+                    st.success(f"¡Sincronizado! De {info['TO']} a {info['TD']}")
                     st.session_state['hora_referencia'] = h_llegada
                     time.sleep(1.5)
                     st.rerun()
-                except requests.exceptions.Timeout:
-                    # Si da timeout, es probable que sí se haya enviado
-                    st.warning("El servidor tardó en responder, pero los datos probablemente se enviaron. Revisa el Drive.")
+                except:
+                    st.warning("Respuesta lenta del servidor, pero el registro probablemente se envió. Verifica el Drive.")
                     st.session_state['hora_referencia'] = h_llegada
-                except Exception as e:
-                    st.error(f"Error inesperado: {str(e)}")
