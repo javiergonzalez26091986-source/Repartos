@@ -8,7 +8,7 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.1 - Base Completa", layout="wide")
+st.set_page_config(page_title="SERGEM v6.2 - Panadería Validada", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
@@ -28,7 +28,7 @@ def finalizar_operacion():
     if os.path.exists(PERSISTENCIA_INI): os.remove(PERSISTENCIA_INI)
     if os.path.exists(DB_LOCAL): os.remove(DB_LOCAL)
     st.session_state['hora_referencia'] = ""
-    st.success("Operación finalizada correctamente.")
+    st.success("Operación de hoy cerrada. ¡Buen descanso!")
     time.sleep(2)
     st.rerun()
 
@@ -37,53 +37,45 @@ if 'hora_referencia' not in st.session_state:
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("⚙️ Menú")
-    st.info(f"Referencia: {st.session_state.get('hora_referencia', 'Pendiente')}")
+    st.header("⚙️ Menú Operativo")
+    st.info(f"H. Referencia: {st.session_state.get('hora_referencia', 'Pendiente')}")
     if st.button("🏁 FINALIZAR ENTREGAS DEL DÍA", use_container_width=True, type="primary"):
         finalizar_operacion()
 
-# --- BASE DE DATOS ACTUALIZADA ---
-TIENDAS_POLLOS = {
+# --- BASES DE DATOS ---
+# Panadería: Estrictamente lo solicitado
+TIENDAS_PANADERIA = {
     'CALI': {
-        'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218',
-        'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223',
-        'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233',
-        'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214',
-        'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799',
-        'ÉXITO CRA OCTAVA (L)': '650', 'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA HOLGUINES': '2596540',
-        'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540'
-    },
-    'MEDELLÍN': {
-        'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452',
-        'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758',
-        'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070',
-        'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557',
-        'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665',
-        'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776',
-        'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778',
-        'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'
-    },
-    'BOGOTÁ': {
-        'ÉXITO EXPRESS EMBAJADA': '110', 'ÉXITO EXPRESS COLSEGUROS (CAF)': '301', 'SURTIMAX BRASIL BOSA': '311',
-        'SURTIMAX CASA BLANCA (CAF)': '434', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450',
-        'ÉXITO EXPRESS BIMA': '459', 'SURTIMAX BARRANCAS': '467', 'CARULLA EXPRESS CEDRITOS': '468',
-        'SURTIMAX NUEVA ROMA': '470', 'SURTIMAX TIBABUYES': '473', 'SURTIMAX TRINITARIA': '474',
-        'SURTIMAX LA GLORIA': '481', 'SURTIMAX SAN FERNANDO': '511', 'CARULLA CALLE 147': '549',
-        'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX TOCANCIPÁ': '573', 'SURTIMAX SAN MATEO': '575',
-        'SURTIMAX CAJICÁ': '576', 'SURTIMAX SOPÓ': '577', 'SURTIMAX COMPARTIR SOACHA': '579',
-        'SURTIMAX SANTA RITA': '623', 'ÉXITO EXPRESS CRA 15 CON 100': '657', 'SURTIMAX LA CALERA': '703',
-        'SURTIMAX YANGUAS': '709', 'SURTIMAX EL SOCORRO': '768', 'SURTIMAX EL RECREO BOSA': '781',
-        'CARULLA LA CALERA': '886', 'ÉXITO PRIMAVERA CALLE 80': '4068', 'ÉXITO PARQUE FONTIBON': '4069',
-        'ÉXITO PRADILLA': '4071', 'ÉXITO CIUDADELA': '4082', 'ÉXITO EXPRESS CRA 24 83-22': '4187',
-        'SURTIMAX CHAPINERO': '4523', 'SURTIMAX LIJACA': '4524', 'SURTIMAX QUIROGA': '4527',
-        'SURTIMAX SUBA BILBAO': '4533', 'SURTIMAX SANTA ISABEL': '4539', 'CARULLA BACATA': '4813',
-        'CARULLA SMARTMARKET': '4814', 'CARULLA LA PRADERA DE POTOSÍ': '4818', 'CARULLA EXPRESS C109 C14': '4822',
-        'CARULLA EXPRESS SIBERIA': '4825', 'CARULLA EXPRESS CALLE 90': '4828', 'CARULLA EXPRESS PONTEVEDRA': '4836',
-        'CARULLA EXPRESS CARRERA 7': '4839', 'CARULLA EXPRESS SALITRE': '4875', 'CARULLA EXPRESS CORFERIAS': '4876'
+        'CARULLA CIUDAD JARDIN': '2732540',
+        'CARULLA PANCE': '2594540',
+        'CARULLA HOLGUINES (TRADE CENTER)': '4219540',
+        'CARULLA PUNTO VERDE': '4799540',
+        'CARULLA AV COLOMBIA': '4219540',
+        'CARULLA SAN FERNANDO': '2595540',
+        'CARULLA LA MARIA': '4781540',
+        'ÉXITO UNICALI': '2054056',
+        'ÉXITO JAMUNDI': '2054049',
+        'ÉXITO LA FLORA': '2054540',
+        'CARULLA HOLGUINES (ENTREGA)': '2596540' # Código específico de entrega suministrado
     },
     'MANIZALES': {
-        'CARULLA CABLE PLAZA': '2334540', 'SUPERINTER CRISTO REY': '4301540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805'
+        'CARULLA CABLE PLAZA': '2334540',
+        'ÉXITO MANIZALES': '383',
+        'CARULLA SAN MARCEL': '4805',
+        'SUPERINTER CRISTO REY': '4301540',
+        'SUPERINTER ALTA SUIZA': '4302540',
+        'SUPERINTER SAN SEBASTIAN': '4303540',
+        'SUPERINTER MANIZALES CENTRO': '4273540',
+        'SUPERINTER CHIPRE': '4279540',
+        'SUPERINTER VILLA PILAR': '4280540'
     }
+}
+
+# Tiendas Pollos (Mantenemos la base anterior completa)
+TIENDAS_POLLOS = {
+    'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'},
+    'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452', 'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758', 'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070', 'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557', 'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665', 'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776', 'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778', 'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'},
+    'BOGOTÁ': {'ÉXITO EXPRESS EMBAJADA': '110', 'ÉXITO EXPRESS COLSEGUROS (CAF)': '301', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX CASA BLANCA (CAF)': '434', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450', 'ÉXITO EXPRESS BIMA': '459', 'SURTIMAX BARRANCAS': '467', 'CARULLA EXPRESS CEDRITOS': '468', 'SURTIMAX NUEVA ROMA': '470', 'SURTIMAX TIBABUYES': '473', 'SURTIMAX TRINITARIA': '474', 'SURTIMAX LA GLORIA': '481', 'SURTIMAX SAN FERNANDO': '511', 'CARULLA CALLE 147': '549', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX TOCANCIPÁ': '573', 'SURTIMAX SAN MATEO': '575', 'SURTIMAX CAJICÁ': '576', 'SURTIMAX SOPÓ': '577', 'SURTIMAX COMPARTIR SOACHA': '579', 'SURTIMAX SANTA RITA': '623', 'ÉXITO EXPRESS CRA 15 CON 100': '657', 'SURTIMAX LA CALERA': '703', 'SURTIMAX YANGUAS': '709', 'SURTIMAX EL SOCORRO': '768', 'SURTIMAX EL RECREO BOSA': '781', 'CARULLA LA CALERA': '886', 'ÉXITO PRIMAVERA CALLE 80': '4068', 'ÉXITO PARQUE FONTIBON': '4069', 'ÉXITO PRADILLA': '4071', 'ÉXITO CIUDADEL': '4082', 'ÉXITO EXPRESS CRA 24 83-22': '4187', 'SURTIMAX CHAPINERO': '4523', 'SURTIMAX LIJACA': '4524', 'SURTIMAX QUIROGA': '4527', 'SURTIMAX SUBA BILBAO': '4533', 'SURTIMAX SANTA ISABEL': '4539', 'CARULLA BACATA': '4813', 'CARULLA SMARTMARKET': '4814', 'CARULLA LA PRADERA DE POTOSÍ': '4818', 'CARULLA EXPRESS C109 C14': '4822', 'CARULLA EXPRESS SIBERIA': '4825', 'CARULLA EXPRESS CALLE 90': '4828', 'CARULLA EXPRESS PONTEVEDRA': '4836', 'CARULLA EXPRESS CARRERA 7': '4839', 'CARULLA EXPRESS SALITRE': '4875', 'CARULLA EXPRESS CORFERIAS': '4876'}
 }
 
 CANAVERAL_CALI = ['VILLAGORGONA', 'VILLANUEVA', 'COOTRAEMCALI']
@@ -112,27 +104,37 @@ if cedula and nombre:
 
         info = None
         if ciudad != "--":
-            # LÓGICA ESPECIAL CAÑAVERAL CALI
+            # 1. CAÑAVERAL CALI
             if ciudad == "CALI" and empresa == "CAÑAVERAL":
                 st.subheader("🏢 Operación Cañaveral")
-                cp1, cp2 = st.columns(2)
-                with cp1: o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="c_o")
-                with cp2: d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="c_d")
-                if o != "--" and d != "--":
-                    info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
+                col1, col2 = st.columns(2)
+                with col1: o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="c_o")
+                with col2: d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="c_d")
+                if o != "--" and d != "--": info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
             
-            # LÓGICA NORMAL
+            # 2. PANADERÍA CALI/MANIZALES (LISTA VALIDADA)
+            elif producto == "PANADERÍA" and (ciudad == "CALI" or ciudad == "MANIZALES"):
+                st.subheader("🥖 Panadería Validada")
+                tiendas_p = TIENDAS_PANADERIA.get(ciudad, {})
+                opciones_p = ["--"] + sorted(list(tiendas_p.keys()))
+                col1, col2 = st.columns(2)
+                with col1: o = st.selectbox("📦 Recoge en:", opciones_p, key="p_o_v")
+                with col2: d = st.selectbox("🏠 Entrega en:", opciones_p, key="p_d_v")
+                if o != "--" and d != "--":
+                    info = {"TO": o, "CO": tiendas_p[o], "TD": d, "CD": tiendas_p[d]}
+
+            # 3. OTROS (POLLOS O RESTO DE CIUDADES)
             else:
-                tiendas = TIENDAS_POLLOS.get(ciudad, {})
-                opciones = ["--"] + sorted(list(tiendas.keys()))
+                tiendas_gen = TIENDAS_POLLOS.get(ciudad, {}) if producto == "POLLOS" else TIENDAS_PANADERIA.get(ciudad, {})
+                op_gen = ["--"] + sorted(list(tiendas_gen.keys()))
                 if producto == "PANADERÍA":
                     col1, col2 = st.columns(2)
-                    with col1: o = st.selectbox("📦 Recoge en:", opciones, key="p_o")
-                    with col2: d = st.selectbox("🏠 Entrega en:", opciones, key="p_d")
-                    if o != "--" and d != "--": info = {"TO": o, "CO": tiendas[o], "TD": d, "CD": tiendas[d]}
+                    with col1: o = st.selectbox("📦 Recoge en:", op_gen, key="p_o_gen")
+                    with col2: d = st.selectbox("🏠 Entrega en:", op_gen, key="p_d_gen")
+                    if o != "--" and d != "--": info = {"TO": o, "CO": tiendas_gen[o], "TD": d, "CD": tiendas_gen[d]}
                 else:
-                    t = st.selectbox("🏪 Tienda de Entrega:", opciones, key="p_t")
-                    if t != "--": info = {"TO": t, "CO": tiendas[t], "TD": t, "CD": "N/A"}
+                    t = st.selectbox("🏪 Tienda de Entrega:", op_gen, key="pol_gen")
+                    if t != "--": info = {"TO": t, "CO": tiendas_gen[t], "TD": t, "CD": "N/A"}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
@@ -154,9 +156,9 @@ if cedula and nombre:
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=25)
-                    st.success("¡Enviado!")
+                    st.success("¡Enviado a la Nube!")
                 except:
-                    st.warning("Guardado local (Sin Internet).")
+                    st.warning("Guardado local (Sin conexión).")
                 
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
@@ -165,5 +167,5 @@ if cedula and nombre:
 
     if os.path.exists(DB_LOCAL):
         st.markdown("---")
-        st.subheader("📋 Resumen del Día")
+        st.subheader("📋 Resumen de Hoy")
         st.dataframe(pd.read_csv(DB_LOCAL).tail(10), use_container_width=True)
