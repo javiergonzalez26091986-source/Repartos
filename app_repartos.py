@@ -1,16 +1,20 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import pytz
 import os
 import requests
 
+# Configuración de Zona Horaria Colombia
+col_tz = pytz.timezone('America/Bogota')
+
 st.set_page_config(page_title="SERGEM - Control Maestro Nube", layout="wide")
 
-# --- LA LLAVE MAESTRA ACTUALIZADA ---
+# --- CONFIGURACIÓN ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbz7247cJGrI1TYEse0OjdsUlnqruEGoPRrZTmSki8gtL29bqtH6l7y6FISnS0sjoQI/exec"
 DB_FILE = "registro_diario.csv"
 
-# --- BASE DE DATOS DE TIENDAS Y RUTAS ---
+# --- DATOS DE RUTAS ---
 DATA_POLLOS = {
     'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650'},
     'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'},
@@ -42,11 +46,11 @@ RUTAS_PAN = {
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = ""
 
-st.title("🛵 Control Maestro SERGEM")
+st.title("🛵 Control Maestro SERGEM (Colombia Time)")
 
 with st.sidebar:
     st.header("⚙️ Gestión")
-    if st.button("🗑️ REINICIAR DÍA"):
+    if st.button("🗑️ REINICIAR JORNADA"):
         if os.path.exists(DB_FILE): os.remove(DB_FILE)
         st.session_state['hora_referencia'] = ""
         st.rerun()
@@ -56,7 +60,8 @@ nombre = st.text_input("Nombre del Mensajero:").upper()
 if nombre:
     if st.session_state['hora_referencia'] == "":
         st.subheader("🕒 Iniciar Jornada")
-        h_ini = st.time_input("Hora de salida de Base:", datetime.now())
+        # Aquí forzamos la hora de Colombia al abrir la app
+        h_ini = st.time_input("Hora de salida de Base:", datetime.now(col_tz))
         if st.button("COMENZAR RECORRIDO"):
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
             st.rerun()
@@ -81,8 +86,6 @@ if nombre:
                         idx = opciones.index(sel_ruta)
                         r = rutas[idx]
                         info_reg = {"Tienda": f"{r['R']} a {r['E']}", "C1": r['RC'], "C2": r['EC']}
-                else:
-                    st.warning(f"No hay rutas de Panadería para {ciudad_sel}")
             
             elif producto_sel == "POLLOS":
                 tiendas = DATA_POLLOS.get(ciudad_sel, {})
@@ -94,14 +97,14 @@ if nombre:
         if info_reg:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
             if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
-                ahora = datetime.now()
+                ahora = datetime.now(col_tz)
                 hora_llegada = ahora.strftime("%H:%M")
                 
+                # Cálculo de duración
                 t1 = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t2 = datetime.strptime(hora_llegada, "%H:%M")
                 duracion = int((t2 - t1).total_seconds() / 60)
                 
-                # Diccionario con los nombres exactos que espera el Apps Script
                 datos = {
                     "Fecha": ahora.strftime("%d/%m/%Y"),
                     "Mensajero": nombre,
@@ -116,25 +119,22 @@ if nombre:
                     "Minutos": int(duracion)
                 }
                 
-                # ENVÍO AL GOOGLE SHEETS
-                with st.spinner('Sincronizando con la nube...'):
+                with st.spinner('Sincronizando con Google Sheets...'):
                     try:
                         response = requests.post(URL_GOOGLE_SCRIPT, json=datos, timeout=15)
-                        if response.status_code == 200 and "Éxito" in response.text:
-                            st.success("¡Datos sincronizados correctamente!")
+                        if response.status_code == 200:
+                            st.success("¡Datos enviados a la nube!")
+                            st.session_state['hora_referencia'] = hora_llegada
+                            
+                            # Guardado local opcional
+                            pd.DataFrame([datos]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
+                            st.rerun()
                         else:
-                            st.error(f"Error de respuesta: {response.text}")
+                            st.error(f"Error: {response.text}")
                     except Exception as e:
                         st.error(f"Error de conexión: {e}")
 
-                # Guardado Local de respaldo
-                df_local = pd.DataFrame([datos])
-                df_local.to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE), encoding='utf-8-sig')
-                
-                st.session_state['hora_referencia'] = hora_llegada
-                st.rerun()
-
     if os.path.exists(DB_FILE):
         st.markdown("---")
-        st.subheader("📋 Últimos registros (Local)")
+        st.subheader("📋 Respaldo local")
         st.dataframe(pd.read_csv(DB_FILE).tail(5), use_container_width=True)
