@@ -5,9 +5,9 @@ import pytz
 import os
 import requests
 
-# 1. Configuración de Zona Horaria
+# 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM - Control Maestro v3.3", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro", layout="wide")
 
 # --- URL DE TU IMPLEMENTACIÓN ---
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxBtAsWq2jhnVrqwhGIVXQ8Ue-aKybwZGp5WwvqIa4p5-Bdi7CROvos1dzy1su8_1Lh/exec"
@@ -21,9 +21,9 @@ with st.sidebar:
         st.session_state['hora_referencia'] = ""
         st.rerun()
     st.write("---")
-    st.caption("v3.3 - Corrección de Mensajes")
+    st.caption("v3.4 - Estabilidad Total")
 
-# --- DATOS DE RUTAS ---
+# --- BASE DE DATOS DE RUTAS ---
 DATA_POLLOS = {
     'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'CARULLA LA MARIA': '4781', 'ÉXITO CRA OCTAVA (L)': '650'},
     'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557'},
@@ -53,17 +53,18 @@ if 'hora_referencia' not in st.session_state:
 
 st.title("🛵 Control Maestro SERGEM")
 
-cedula = st.text_input("Cédula:")
-nombre = st.text_input("Nombre:").upper()
+cedula = st.text_input("Número de Cédula:")
+nombre = st.text_input("Nombre del Mensajero:").upper()
 
 if cedula and nombre:
     if st.session_state['hora_referencia'] == "":
+        st.subheader("🕒 Iniciar Jornada")
         h_ini = st.time_input("Hora de salida de Base:", datetime.now(col_tz))
         if st.button("COMENZAR RECORRIDO"):
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
             st.rerun()
     else:
-        st.info(f"👤 {nombre} (CC: {cedula}) | 🕒 Inicio: {st.session_state['hora_referencia']}")
+        st.info(f"✅ Registro para: **{nombre}** | Inicio: **{st.session_state['hora_referencia']}**")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -88,13 +89,17 @@ if cedula and nombre:
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1)
             
-            # --- LÓGICA DE MENSAJE ÚNICO ---
-            placeholder_mensaje = st.empty() # Crea un espacio único para el mensaje
+            # ESPACIO PARA MENSAJES
+            msg_status = st.empty()
             
             if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
-                duracion = int((datetime.strptime(h_llegada, "%H:%M") - datetime.strptime(st.session_state['hora_referencia'], "%H:%M")).total_seconds() / 60)
+                
+                # Cálculo de minutos
+                t_ref = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
+                t_lleg = datetime.strptime(h_llegada, "%H:%M")
+                duracion = int((t_lleg - t_ref).total_seconds() / 60)
                 
                 payload = {
                     "Fecha": ahora.strftime("%d/%m/%Y"),
@@ -105,18 +110,17 @@ if cedula and nombre:
                 
                 try:
                     res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    if res.status_code == 200 and "Éxito" in res.text:
-                        # Si tiene éxito, solo muestra el verde y limpia cualquier error previo
-                        placeholder_mensaje.success(f"¡Sincronizado! Destino: {info['D']}")
+                    if "Éxito" in res.text:
+                        msg_status.success(f"¡Sincronizado! Destino: {info['D']}")
                         st.session_state['hora_referencia'] = h_llegada
                         pd.DataFrame([payload]).to_csv(DB_FILE, mode='a', index=False, header=not os.path.exists(DB_FILE))
                         st.rerun()
                     else:
-                        placeholder_mensaje.error(f"Error en servidor: {res.text}")
-                except Exception as e:
-                    # Si falla, solo muestra el rojo
-                    placeholder_mensaje.error("Error de conexión: Revisa tu internet e intenta de nuevo.")
+                        msg_status.error(f"Error en servidor: {res.text}")
+                except Exception:
+                    msg_status.error("Falla de conexión. Intente de nuevo.")
 
+    # Respaldo local
     if os.path.exists(DB_FILE):
         try:
             df = pd.read_csv(DB_FILE)
@@ -124,4 +128,4 @@ if cedula and nombre:
                 st.markdown("---")
                 st.subheader("📋 Respaldo local")
                 st.dataframe(df.tail(5), use_container_width=True)
-        except: pass
+        except Exception: pass
