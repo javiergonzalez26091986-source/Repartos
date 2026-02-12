@@ -7,33 +7,41 @@ import requests
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM - Control Maestro v4.3", layout="wide")
+st.set_page_config(page_title="SERGEM - Control Maestro v4.4", layout="wide")
 
-# --- NUEVOS LINKS DE IMPLEMENTACIÓN ACTUALIZADOS ---
-URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
+# --- LINK DE IMPLEMENTACIÓN ACTUALIZADO ---
+URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- BASE DE DATOS DE TIENDAS ---
-TIENDAS_DATOS = {
-    'CALI': {
-        'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA HOLGUINES': '2596540', 
-        'CARULLA PANCE': '2594540', 'ÉXITO UNICALI': '2054056', 
-        'ÉXITO JAMUNDI': '2054049', 'CARULLA AV COLOMBIA': '4219540',
-        'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206',
-        'CAÑAVERAL PASOANCHO': 'CAN01', 'CAÑAVERAL SUR': 'CAN02'
-    },
-    'MANIZALES': {
-        'CARULLA CABLE PLAZA': '2334540', 'SUPERINTER CRISTO REY': '4301540',
-        'SUPERINTER ALTA SUIZA': '4302540', 'ÉXITO MANIZALES': '383',
-        'SUPERINTER MANIZALES CENTRO': '4273540', 'CARULLA SAN MARCEL': '4805'
-    },
-    'MEDELLÍN': {
-        'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 
-        'ÉXITO GARDEL': '4070', 'SURTIMAX CALDAS': '4534'
-    },
-    'BOGOTÁ': {
-        'CARULLA EXPRESS CEDRITOS': '468', 'ÉXITO PLAZA BOLIVAR': '558', 
-        'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX LA ESPAÑOLA': '449'
-    }
+# --- OPCIÓN DE REINICIAR (SIEMPRE DISPONIBLE) ---
+with st.sidebar:
+    st.header("⚙️ Gestión")
+    if st.button("🗑️ REINICIAR DÍA"):
+        st.session_state['hora_referencia'] = ""
+        st.rerun()
+    st.write("---")
+    st.caption("v4.4 - Panadería Inteligente")
+
+# --- BASE DE DATOS DE RUTAS PANADERÍA (SEGÚN TU IMAGEN) ---
+RUTAS_PAN = {
+    'CALI': [
+        {'R': 'CARULLA CIUDAD JARDIN', 'CR': '2732540', 'E': 'CARULLA HOLGUINES', 'CE': '2596540'},
+        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'ÉXITO UNICALI', 'CE': '2054056'},
+        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA CIUDAD JARDIN', 'CE': '2732540'},
+        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA HOLGUINES', 'CE': '2596540'},
+        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'ÉXITO JAMUNDI', 'CE': '2054049'},
+        {'R': 'CARULLA PANCE', 'CR': '2594540', 'E': 'CARULLA AV COLOMBIA', 'CE': '4219540'}
+    ],
+    'MANIZALES': [
+        {'R': 'CARULLA CABLE PLAZA', 'CR': '2334540', 'E': 'SUPERINTER CRISTO REY', 'CE': '4301540'},
+        {'R': 'CARULLA CABLE PLAZA', 'CR': '2334540', 'E': 'SUPERINTER ALTA SUIZA', 'CE': '4302540'},
+        {'R': 'ÉXITO MANIZALES', 'CR': '383', 'E': 'SUPERINTER MANIZALES CENTRO', 'CE': '4273540'}
+    ]
+}
+
+# Tiendas para Pollos o General
+TIENDAS_GENERAL = {
+    'CALI': {'CARULLA AV COLOMBIA': '4219540', 'ÉXITO JAMUNDI': '2054049', 'CARULLA PANCE': '2594540'},
+    'MANIZALES': {'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805'}
 }
 
 if 'hora_referencia' not in st.session_state:
@@ -42,11 +50,11 @@ if 'hora_referencia' not in st.session_state:
 st.title("🛵 Control Maestro SERGEM")
 
 # --- IDENTIFICACIÓN ---
-c_id1, c_id2 = st.columns(2)
-with c_id1:
-    cedula = st.text_input("Cédula:")
-with c_id2:
-    nombre = st.text_input("Nombre:").upper()
+c1, c2 = st.columns(2)
+with c1:
+    cedula = st.text_input("Cédula:", key="ced")
+with c2:
+    nombre = st.text_input("Nombre:", key="nom").upper()
 
 if cedula and nombre:
     if st.session_state['hora_referencia'] == "":
@@ -56,76 +64,50 @@ if cedula and nombre:
             st.session_state['hora_referencia'] = h_ini.strftime("%H:%M")
             st.rerun()
     else:
-        st.success(f"✅ Mensajero: **{nombre}** | Inicio: **{st.session_state['hora_referencia']}**")
+        st.success(f"✅ Mensajero: {nombre} | Inicio: {st.session_state['hora_referencia']}")
         
         # --- FILTROS ---
         f1, f2, f3 = st.columns(3)
-        with f1:
-            ciudad_sel = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"])
-        with f2:
-            prod_sel = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
-        with f3:
-            empresa_sel = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SUPERINTER-SURTIMAX", "CAÑAVERAL", "OTROS"])
+        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES"])
+        with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
+        with f3: empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SUPERINTER-SURTIMAX", "CAÑAVERAL", "OTROS"])
 
         info = None
-        if ciudad_sel != "--":
-            tiendas_ciudad = TIENDAS_DATOS.get(ciudad_sel, {})
-            opciones = ["--"] + sorted(list(tiendas_ciudad.keys()))
-            
-            if prod_sel == "PANADERÍA":
-                st.subheader("🥖 Ruta de Panadería")
-                col_p1, col_p2 = st.columns(2)
-                with col_p1:
-                    orig = st.selectbox("📦 Recoge en:", opciones, key="p_orig")
-                with col_p2:
-                    dest = st.selectbox("🏠 Entrega en:", opciones, key="p_dest")
-                
-                if orig != "--" and dest != "--":
-                    info = {"TO": orig, "CO": tiendas_ciudad[orig], "TD": dest, "CD": tiendas_ciudad[dest]}
+        if ciudad != "--":
+            if producto == "PANADERÍA":
+                rutas = RUTAS_PAN.get(ciudad, [])
+                opciones = [f"{r['R']} -> {r['E']}" for r in rutas]
+                sel = st.selectbox("🥖 Seleccione Ruta:", ["--"] + opciones)
+                if sel != "--":
+                    idx = opciones.index(sel)
+                    info = {"TO": rutas[idx]['R'], "CO": rutas[idx]['CR'], "TD": rutas[idx]['E'], "CD": rutas[idx]['CE']}
             else:
-                st.subheader("🍗 Entrega de Pollos")
-                tienda = st.selectbox("🏪 Tienda:", opciones, key="p_pollos")
-                if tienda != "--":
-                    info = {"TO": tienda, "CO": tiendas_ciudad[tienda], "TD": tienda, "CD": "N/A"}
+                tiendas = TIENDAS_GENERAL.get(ciudad, {})
+                sel = st.selectbox("🍗 Tienda Entrega:", ["--"] + list(tiendas.keys()))
+                if sel != "--":
+                    info = {"TO": sel, "CO": tiendas[sel], "TD": sel, "CD": "N/A"}
 
         if info:
-            cant = st.number_input("Cantidad:", min_value=1)
-            msg_status = st.empty()
-            
+            cant = st.number_input("Cantidad:", min_value=1, step=1)
             if st.button("ENVIAR A LA NUBE ✅", use_container_width=True):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
+                duracion = int((datetime.strptime(h_llegada, "%H:%M") - datetime.strptime(st.session_state['hora_referencia'], "%H:%M")).total_seconds() / 60)
                 
-                # Cálculo de minutos
-                t1 = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
-                t2 = datetime.strptime(h_llegada, "%H:%M")
-                duracion = int((t2 - t1).total_seconds() / 60)
-                
-                # Payload alineado a 14 columnas para Google Sheets
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), 
-                    "Cedula": cedula, 
-                    "Mensajero": nombre,
-                    "Empresa": empresa_sel, 
-                    "Ciudad": ciudad_sel, 
-                    "Producto": prod_sel,
-                    "Tienda_O": info["TO"], 
-                    "Cod_O": info["CO"], 
-                    "Cod_D": info["CD"], 
-                    "Tienda_D": info["TD"],
-                    "Cant": int(cant), 
-                    "Inicio": st.session_state['hora_referencia'], 
-                    "Llegada": h_llegada, 
-                    "Minutos": duracion
+                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": cedula, "Mensajero": nombre,
+                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
+                    "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
+                    "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": duracion
                 }
                 
                 try:
                     res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                     if "Éxito" in res.text:
-                        msg_status.success(f"¡Sincronizado! De {info['TO']} a {info['TD']}")
+                        st.success(f"¡Guardado! Próximo destino desde: {h_llegada}")
                         st.session_state['hora_referencia'] = h_llegada
                         st.rerun()
                     else:
-                        msg_status.error(f"Error en servidor: {res.text}")
+                        st.error("Error en servidor. Verifica tu internet.")
                 except:
-                    msg_status.error("Falla de conexión. Intente de nuevo.")
+                    st.error("Error de conexión.")
