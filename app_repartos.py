@@ -8,9 +8,10 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.2.1 - Estable", layout="wide")
+st.set_page_config(page_title="SERGEM v6.2.1 - Conectada", layout="wide")
 
-URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
+# URL CORREGIDA SEGÚN TU ID DE IMPLEMENTACIÓN
+URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
 DB_LOCAL = "registro_diario_respaldo.csv"
@@ -27,14 +28,12 @@ def leer_memoria():
 def finalizar_operacion():
     if os.path.exists(PERSISTENCIA_INI): os.remove(PERSISTENCIA_INI)
     if os.path.exists(DB_LOCAL): os.remove(DB_LOCAL)
-    # Limpiamos todo el estado de la sesión
     for key in st.session_state.keys():
         del st.session_state[key]
     st.success("Operación de hoy cerrada. ¡Buen descanso!")
     time.sleep(2)
     st.rerun()
 
-# Función para limpiar solo los campos de la entrega
 def limpiar_entrega():
     campos_a_borrar = ['sel_ciu', 'sel_emp', 'rad_prod', 'c_o', 'c_d', 'p_o_v', 'p_d_v', 'p_o_gen', 'p_d_gen', 'pol_gen', 'cant_val']
     for clave in campos_a_borrar:
@@ -50,7 +49,7 @@ with st.sidebar:
     if st.button("🏁 FINALIZAR ENTREGAS DEL DÍA", use_container_width=True, type="primary"):
         finalizar_operacion()
 
-# --- BASES DE DATOS (RESTAURADAS) ---
+# --- BASES DE DATOS ---
 TIENDAS_PANADERIA = {
     'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES (TRADE CENTER)': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540', 'CARULLA HOLGUINES (ENTREGA)': '2596540'},
     'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
@@ -88,14 +87,12 @@ if cedula and nombre:
         info = None
         if ciudad != "--":
             if ciudad == "CALI" and empresa == "CAÑAVERAL":
-                st.subheader("🏢 Operación Cañaveral")
                 col1, col2 = st.columns(2)
                 with col1: o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="c_o")
                 with col2: d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="c_d")
                 if o != "--" and d != "--": info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
             
             elif producto == "PANADERÍA" and (ciudad == "CALI" or ciudad == "MANIZALES"):
-                st.subheader("🥖 Panadería Validada")
                 tiendas_p = TIENDAS_PANADERIA.get(ciudad, {})
                 opciones_p = ["--"] + sorted(list(tiendas_p.keys()))
                 col1, col2 = st.columns(2)
@@ -134,15 +131,17 @@ if cedula and nombre:
                 
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
                 try:
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=25)
-                    st.success("¡Enviado a la Nube!")
+                    response = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=25)
+                    if response.status_code == 200:
+                        st.success("¡Enviado a la Nube!")
+                    else:
+                        st.error(f"Error de servidor: {response.status_code}")
                 except:
                     st.warning("Guardado local (Sin conexión).")
                 
-                # ACTUALIZACIÓN DE HORA Y LIMPIEZA
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
-                limpiar_entrega() # <--- Aquí borramos los campos
+                limpiar_entrega()
                 time.sleep(1.5)
                 st.rerun()
 
