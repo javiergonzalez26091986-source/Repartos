@@ -8,13 +8,15 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.6 - Tiendas Restauradas", layout="wide")
+st.set_page_config(page_title="SERGEM v6.7 - ESTABLE", layout="wide")
 
+# URL VALIDADA (Asegúrate de que sea esta exactamente en tu Script de Google)
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
+
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
 DB_LOCAL = "registro_diario_respaldo.csv"
 
-# --- FUNCIONES DE MEMORIA ---
+# --- FUNCIONES DE PERSISTENCIA ---
 def guardar_memoria(hora):
     with open(PERSISTENCIA_INI, "w") as f: f.write(hora)
 
@@ -34,11 +36,11 @@ if 'hora_referencia' not in st.session_state:
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("⚙️ Menú")
+    st.header("⚙️ Menú Operativo")
     if st.button("🏁 FINALIZAR ENTREGAS DEL DÍA", use_container_width=True, type="primary"):
         finalizar_operacion()
 
-# --- 2. BASES DE DATOS (RECOMPUESTAS Y VERIFICADAS) ---
+# --- BASES DE DATOS (RESTAURADAS AL 100%) ---
 TIENDAS_PANADERIA = {
     'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES (TRADE CENTER)': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540', 'CARULLA HOLGUINES (ENTREGA)': '2596540'},
     'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
@@ -53,10 +55,10 @@ CANAVERAL_CALI = ['VILLAGORGONA', 'VILLANUEVA', 'COOTRAEMCALI']
 
 st.title("🛵 Control Maestro SERGEM")
 
-# 3. Datos Maestro
-c1, c2 = st.columns(2)
-with c1: cedula = st.text_input("Cédula:", key="c_mast")
-with c2: nombre = st.text_input("Nombre:", key="n_mast").upper()
+# Identificación
+col_a, col_b = st.columns(2)
+with col_a: cedula = st.text_input("Cédula:", key="c_main")
+with col_b: nombre = st.text_input("Nombre:", key="n_main").upper()
 
 if cedula and nombre:
     if st.session_state['hora_referencia'] == "":
@@ -69,56 +71,60 @@ if cedula and nombre:
     else:
         st.success(f"✅ {nombre} | Referencia: {st.session_state['hora_referencia']}")
         
-        # --- FILTROS DE SELECCIÓN (FUERA DE FORMULARIO PARA VISIBILIDAD) ---
-        f1, f2, f3 = st.columns(3)
-        with f1: ciudad_sel = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"])
-        with f2: producto_sel = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True)
-        with f3: empresa_sel = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SUPERINTER-SURTIMAX", "CAÑAVERAL", "OTROS"])
+        # Selectores de Operación
+        c1, c2, c3 = st.columns(3)
+        with c1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="sel_ciu")
+        with c2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="rad_prod")
+        with c3: empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SUPERINTER-SURTIMAX", "CAÑAVERAL", "OTROS"], key="sel_emp")
 
-        # Lógica de Tiendas Visible
+        # Lógica de Tiendas (VISIBILIDAD GARANTIZADA)
         t_o, t_d = "--", "--"
-        if ciudad_sel != "--":
-            if ciudad_sel == "CALI" and empresa_sel == "CAÑAVERAL":
-                col1, col2 = st.columns(2)
-                with col1: t_o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="can_o")
-                with col2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="can_d")
-            elif producto_sel == "PANADERÍA" and ciudad_sel in ["CALI", "MANIZALES"]:
-                db_p = TIENDAS_PANADERIA.get(ciudad_sel, {})
-                ops = ["--"] + sorted(list(db_p.keys()))
-                col1, col2 = st.columns(2)
-                with col1: t_o = st.selectbox("📦 Recoge en:", ops, key="pan_o")
-                with col2: t_d = st.selectbox("🏠 Entrega en:", ops, key="pan_d")
+        
+        if ciudad != "--":
+            if ciudad == "CALI" and empresa == "CAÑAVERAL":
+                st.info("Operación Cañaveral")
+                col_o, col_d = st.columns(2)
+                with col_o: t_o = st.selectbox("📦 Recoge en:", ["--"] + CANAVERAL_CALI, key="can_o")
+                with col_d: t_d = st.selectbox("🏠 Entrega en:", ["--"] + CANAVERAL_CALI, key="can_d")
+            
+            elif producto == "PANADERÍA" and ciudad in ["CALI", "MANIZALES"]:
+                db = TIENDAS_PANADERIA.get(ciudad, {})
+                ops = ["--"] + sorted(list(db.keys()))
+                col_o, col_d = st.columns(2)
+                with col_o: t_o = st.selectbox("📦 Recoge en:", ops, key="p_o")
+                with col_d: t_d = st.selectbox("🏠 Entrega en:", ops, key="p_d")
+            
             else:
-                db_g = TIENDAS_POLLOS.get(ciudad_sel, {}) if producto_sel == "POLLOS" else TIENDAS_PANADERIA.get(ciudad_sel, {})
-                ops = ["--"] + sorted(list(db_g.keys()))
-                if producto_sel == "PANADERÍA":
-                    col1, col2 = st.columns(2)
-                    with col1: t_o = st.selectbox("📦 Recoge en:", ops, key="gen_o")
-                    with col2: t_d = st.selectbox("🏠 Entrega en:", ops, key="gen_d")
+                db = TIENDAS_POLLOS.get(ciudad, {}) if producto == "POLLOS" else TIENDAS_PANADERIA.get(ciudad, {})
+                ops = ["--"] + sorted(list(db.keys()))
+                if producto == "PANADERÍA":
+                    col_o, col_d = st.columns(2)
+                    with col_o: t_o = st.selectbox("📦 Recoge en:", ops, key="g_o")
+                    with col_d: t_d = st.selectbox("🏠 Entrega en:", ops, key="g_d")
                 else:
-                    t_o = st.selectbox("🏪 Tienda de Entrega:", ops, key="pol_t")
+                    t_o = st.selectbox("🏪 Tienda de Entrega:", ops, key="pol_o")
                     t_d = t_o
 
-        cant = st.number_input("Cantidad:", min_value=1, step=1, key="cant_input")
-        
-        # BOTÓN DE ENVÍO CON LIMPIEZA MANUAL
+        cantidad = st.number_input("Cantidad:", min_value=1, step=1, key="cant_main")
+
         if st.button("ENVIAR REGISTRO ✅", use_container_width=True):
-            if t_o == "--" or empresa_sel == "--":
-                st.error("Error: Selecciona tienda y empresa.")
+            if t_o == "--" or empresa == "--":
+                st.error("Faltan datos por seleccionar.")
             else:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # CÁLCULO DE CÓDIGOS
+                # Códigos
                 c_o, c_d = "--", "--"
-                if empresa_sel == "CAÑAVERAL": c_o, c_d = "CAN", "CAN"
-                elif producto_sel == "POLLOS":
-                    c_o = TIENDAS_POLLOS.get(ciudad_sel, {}).get(t_o, "--")
+                if empresa == "CAÑAVERAL": c_o, c_d = "CAN", "CAN"
+                elif producto == "POLLOS":
+                    c_o = TIENDAS_POLLOS.get(ciudad, {}).get(t_o, "--")
                     c_d = "N/A"
-                else: # PANADERÍA
-                    c_o = TIENDAS_PANADERIA.get(ciudad_sel, {}).get(t_o, "--")
-                    c_d = TIENDAS_PANADERIA.get(ciudad_sel, {}).get(t_d, "--")
+                else:
+                    c_o = TIENDAS_PANADERIA.get(ciudad, {}).get(t_o, "--")
+                    c_d = TIENDAS_PANADERIA.get(ciudad, {}).get(t_d, "--")
 
+                # Tiempos
                 t_i = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                 t_f = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_f - t_i).total_seconds() / 60)
@@ -126,17 +132,20 @@ if cedula and nombre:
 
                 payload = {
                     "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": cedula, "Mensajero": nombre,
-                    "Empresa": empresa_sel, "Ciudad": ciudad_sel, "Producto": producto_sel,
+                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
                     "Tienda_O": t_o, "Cod_O": c_o, "Cod_D": c_d, "Tienda_D": t_d,
-                    "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
+                    "Cant": int(cantidad), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
                 }
                 
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
                 try:
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=25)
-                    st.success("¡Enviado!")
+                    res = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
+                    if res.status_code == 200:
+                        st.success("¡Registro en la nube exitoso!")
+                    else:
+                        st.warning("Error de servidor, pero guardado local.")
                 except:
-                    st.warning("Guardado localmente.")
+                    st.warning("Sin conexión. Registro guardado en el teléfono.")
                 
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
