@@ -8,7 +8,7 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.3.2 - Filtros Inteligentes", layout="wide")
+st.set_page_config(page_title="SERGEM v6.3.5 - Lógica Geográfica", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
@@ -39,15 +39,16 @@ def limpiar_entrega():
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = leer_memoria()
 
-# --- BASES DE DATOS FILTRADAS ---
+# --- BASES DE DATOS ---
 LISTA_CANAVERAL = [
-    'CENTENARIO (AV 4N)', 'SANTA HELENA', 'PRADOS DEL NORTE (LA 34)', 'EL INGENIO', 
-    'EL LIMONAR (CRA 70)', 'PANCE', 'BRISAS DE LOS ALAMOS', '20 DE JULIO', 
-    'LOS PINOS', 'CAVASA', 'JAMUNDÍ (COUNTRY MALL)', 'PALMIRA', 'BUGA', 'TULUA', 
-    'VILLAGORGONA', 'VILLANUEVA', 'COOTRAEMCALI', 'ROLDANILLO'
+    '20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 
+    'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 
+    'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 
+    'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 
+    'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 
+    'TULUA', 'VILLAGORGONA', 'VILLANUEVA'
 ]
 
-# Diccionarios para ÉXITO-CARULLA-SURTIMAX-SUPERINTER
 TIENDAS_PANADERIA = {
     'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES (TRADE CENTER)': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540', 'CARULLA HOLGUINES (ENTREGA)': '2596540'},
     'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
@@ -60,7 +61,7 @@ TIENDAS_POLLOS = {
 }
 
 # --- INTERFAZ ---
-st.title("🛵 SERGEM v6.3.2")
+st.title("🛵 SERGEM v6.3.5")
 with st.sidebar:
     if st.button("🏁 FINALIZAR DÍA", type="primary"): finalizar_operacion()
 
@@ -77,21 +78,25 @@ if cedula and nombre:
             st.rerun()
     else:
         st.info(f"✅ Ref: {st.session_state['hora_referencia']}")
-        f1, f2, f3 = st.columns(3)
+        f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="sel_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="rad_prod")
-        with f3: empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL", "OTROS"], key="sel_emp")
+        
+        # --- LÓGICA DE EMPRESAS POR CIUDAD ---
+        opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "OTROS"]
+        if ciudad in ["CALI", "MANIZALES"]:
+            opciones_empresa.insert(2, "CAÑAVERAL")
+        
+        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
-            # --- FILTRO 1: CAÑAVERAL ---
             if empresa == "CAÑAVERAL":
                 col1, col2 = st.columns(2)
-                with col1: o = st.selectbox("📦 Origen Cañaveral:", ["--"] + sorted(LISTA_CANAVERAL), key="c_o")
-                with col2: d = st.selectbox("🏠 Destino Cañaveral:", ["--"] + sorted(LISTA_CANAVERAL), key="c_d")
+                with col1: o = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="c_o")
+                with col2: d = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="c_d")
                 if o != "--" and d != "--": info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
             
-            # --- FILTRO 2: GRUPO ÉXITO ---
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 if producto == "PANADERÍA":
                     dic = TIENDAS_PANADERIA.get(ciudad, {})
@@ -104,10 +109,9 @@ if cedula and nombre:
                     dic = TIENDAS_POLLOS.get(ciudad, {})
                     ops = ["--"] + sorted(list(dic.keys()))
                     t = st.selectbox("🏪 Tienda de Entrega:", ops, key="pol_gen")
-                    if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
+                    if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic.get(t, "N/A")}
             
-            # --- FILTRO 3: OTROS ---
-            else:
+            else: # OTROS
                 t_otros = st.text_input("Escriba la tienda/empresa externa:").upper()
                 if t_otros: info = {"TO": "OTRO", "CO": "N/A", "TD": t_otros, "CD": "N/A"}
 
@@ -131,9 +135,9 @@ if cedula and nombre:
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    st.success("¡Enviado a Drive!")
+                    st.success("¡Enviado!")
                 except:
-                    st.warning("Guardado Localmente.")
+                    st.warning("Guardado Local.")
                 
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
