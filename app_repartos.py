@@ -72,7 +72,7 @@ TIENDAS_POLLOS = {
 }
 
 # --- INTERFAZ ---
-st.title("🛵 SERGEM v6.3.6")
+st.title("🛵 Control de entregas SERGEM")
 with st.sidebar:
     if st.button("🏁 FINALIZAR DÍA", type="primary"): finalizar_operacion()
 
@@ -156,4 +156,5 @@ if cedula and nombre:
 
 if os.path.exists(DB_LOCAL):
     st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
+
 
