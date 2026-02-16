@@ -8,7 +8,7 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.3.5 - Lógica Geográfica", layout="wide")
+st.set_page_config(page_title="SERGEM v6.3.6 - Limpieza Total", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
@@ -39,7 +39,7 @@ def limpiar_entrega():
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = leer_memoria()
 
-# --- BASES DE DATOS ---
+# --- BASES DE DATOS CORREGIDAS ---
 LISTA_CANAVERAL = [
     '20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 
     'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 
@@ -50,7 +50,18 @@ LISTA_CANAVERAL = [
 ]
 
 TIENDAS_PANADERIA = {
-    'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES (TRADE CENTER)': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540', 'CARULLA HOLGUINES (ENTREGA)': '2596540'},
+    'CALI': {
+        'CARULLA CIUDAD JARDIN': '2732540', 
+        'CARULLA PANCE': '2594540', 
+        'CARULLA HOLGUINES': '4219540', # UNIFICADO
+        'CARULLA PUNTO VERDE': '4799540', 
+        'CARULLA AV COLOMBIA': '4219540', 
+        'CARULLA SAN FERNANDO': '2595540', 
+        'CARULLA LA MARIA': '4781540', 
+        'ÉXITO UNICALI': '2054056', 
+        'ÉXITO JAMUNDI': '2054049', 
+        'ÉXITO LA FLORA': '2054540'
+    },
     'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
 }
 
@@ -61,7 +72,7 @@ TIENDAS_POLLOS = {
 }
 
 # --- INTERFAZ ---
-st.title("🛵 SERGEM v6.3.5")
+st.title("🛵 SERGEM v6.3.6")
 with st.sidebar:
     if st.button("🏁 FINALIZAR DÍA", type="primary"): finalizar_operacion()
 
@@ -82,10 +93,8 @@ if cedula and nombre:
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="sel_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="rad_prod")
         
-        # --- LÓGICA DE EMPRESAS POR CIUDAD ---
         opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "OTROS"]
-        if ciudad in ["CALI", "MANIZALES"]:
-            opciones_empresa.insert(2, "CAÑAVERAL")
+        if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
         
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
