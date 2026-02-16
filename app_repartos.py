@@ -8,7 +8,7 @@ import os
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="SERGEM v6.3.6 - Limpieza Total", layout="wide")
+st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
@@ -156,3 +156,4 @@ if cedula and nombre:
 
 if os.path.exists(DB_LOCAL):
     st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
+
