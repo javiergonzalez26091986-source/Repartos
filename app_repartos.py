@@ -12,7 +12,7 @@ st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
-PERSISTENCIA_USER = "user_respaldo.txt"
+PERSISTENCIA_USER = "user_respaldo.txt" 
 DB_LOCAL = "registro_diario_respaldo.csv"
 
 # --- FUNCIONES DE CONTROL ---
@@ -102,11 +102,50 @@ if cedula and nombre:
         if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
-        # --- SELECCIÓN DINÁMICA DE TIENDA ---
+        # SELECCIÓN DE TIENDA
         tienda_final = "--"
         codigo_final = ""
-        
         if empresa == "CAÑAVERAL":
+            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL)
+        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
+            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
+            tiendas_ciu = dicc.get(ciudad, {})
+            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()))
+            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
+        elif empresa == "OTROS":
+            tienda_final = st.text_input("Escriba el nombre de la tienda:").upper()
+
+        # --- BOTÓN ENVIAR REGISTRO ---
+        if st.button("ENVIAR REGISTRO", type="primary"):
+            if tienda_final == "--" or tienda_final == "":
+                st.warning("Por favor seleccione o escriba una tienda.")
+            else:
+                # La hora actual es el Fin de esta entrega
+                hora_fin = datetime.now(col_tz).strftime("%H:%M")
+                # La hora guardada es el Inicio de esta entrega
+                hora_inicio = st.session_state['hora_referencia']
+                
+                datos = {
+                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
+                    "cedula": cedula, "nombre": nombre, "ciudad": ciudad,
+                    "producto": producto, "empresa": empresa, "tienda": tienda_final,
+                    "codigo": codigo_final, "hora_inicio": hora_inicio, "hora_fin": hora_fin
+                }
+                
+                try:
+                    res = requests.post(URL_GOOGLE_SCRIPT, data=datos)
+                    if res.status_code == 200:
+                        st.success(f"Registro exitoso. Siguiente inicio: {hora_fin}")
+                        # ACTUALIZACIÓN DE TIEMPO PARA LA SIGUIENTE ENTREGA
+                        st.session_state['hora_referencia'] = hora_fin
+                        guardar_memoria(hora_fin)
+                        
+                        time.sleep(1.2)
+                        st.rerun()
+                    else:
+                        st.error("Error al enviar al Drive.")
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
             tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL)
         elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
             dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
@@ -223,4 +262,5 @@ if os.path.exists(DB_LOCAL):
     st.markdown("---")
     st.subheader("📋 Últimos registros de hoy")
     st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
+
 
