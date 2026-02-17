@@ -68,15 +68,21 @@ if cedula and nombre and (cedula != saved_ced or nombre != saved_nom):
     guardar_usuario(cedula, nombre)
 
 if cedula and nombre:
+    # SI NO HAY HORA REGISTRADA (INICIO DE JORNADA)
     if st.session_state['hora_referencia'] == "":
-        st.subheader("🚀 Iniciar Jornada")
-        h_ini = st.time_input("Salida de Base:", datetime.now(col_tz))
-        if st.button("COMENZAR OPERACIÓN"):
-            hora_str = h_ini.strftime("%H:%M")
-            st.session_state['hora_referencia'] = hora_str
-            guardar_memoria(hora_str)
+        st.subheader("🚀 Inicio de Jornada")
+        st.warning("Presione el botón en el momento exacto de salir de la base.")
+        
+        # EL CAMBIO: Botón que captura hora real
+        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
+            hora_real = datetime.now(col_tz).strftime("%H:%M")
+            st.session_state['hora_referencia'] = hora_real
+            guardar_memoria(hora_real)
+            st.success(f"Hora de salida registrada: {hora_real}")
+            time.sleep(1)
             st.rerun()
     
+    # JORNADA EN CURSO
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state['hora_referencia']}")
         
@@ -155,12 +161,9 @@ if cedula and nombre:
                 except:
                     st.warning("Guardado local (Sin conexión).")
                 
-                # ACTUALIZACIÓN DE HORA PARA SIGUIENTE VIAJE
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
                 
-                # --- LIMPIEZA TOTAL DE CAMPOS ---
-                # Borramos ciudad y empresa para que vuelvan a "--"
                 for k in ['sel_ciu', 'sel_emp', 'c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val', 'txt_ext']:
                     if k in st.session_state: del st.session_state[k]
                 
