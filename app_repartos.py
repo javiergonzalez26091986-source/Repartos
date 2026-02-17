@@ -68,7 +68,6 @@ if cedula and nombre and (cedula != saved_ced or nombre != saved_nom):
     guardar_usuario(cedula, nombre)
 
 if cedula and nombre:
-    # SI NO HAY HORA REGISTRADA (INICIO DE JORNADA)
     if st.session_state['hora_referencia'] == "":
         st.subheader("🚀 Iniciar Jornada")
         h_ini = st.time_input("Salida de Base:", datetime.now(col_tz))
@@ -78,7 +77,6 @@ if cedula and nombre:
             guardar_memoria(hora_str)
             st.rerun()
     
-    # JORNADA EN CURSO
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state['hora_referencia']}")
         
@@ -105,7 +103,6 @@ if cedula and nombre:
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
         info = None
-        # LÓGICA DE SELECCIÓN SEGÚN EMPRESA
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
                 col1, col2 = st.columns(2)
@@ -129,14 +126,12 @@ if cedula and nombre:
                 t_otros = st.text_input("Escriba la tienda/empresa externa:", key="txt_ext").upper()
                 if t_otros: info = {"TO": "OTRO", "CO": "N/A", "TD": t_otros, "CD": "N/A"}
 
-        # --- BOTÓN UNIFICADO ENVIAR REGISTRO ---
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="cant_val")
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de tiempo (Minutos)
                 try:
                     t_ini = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
                     t_fin = datetime.strptime(h_llegada, "%H:%M")
@@ -146,49 +141,36 @@ if cedula and nombre:
                     minutos = 0
 
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), 
-                    "Cedula": cedula, 
-                    "Mensajero": nombre,
-                    "Empresa": empresa, 
-                    "Ciudad": ciudad, 
-                    "Producto": producto,
-                    "Tienda_O": info["TO"], 
-                    "Cod_O": info["CO"], 
-                    "Cod_D": info["CD"], 
-                    "Tienda_D": info["TD"],
-                    "Cant": int(cant), 
-                    "Inicio": st.session_state['hora_referencia'], 
-                    "Llegada": h_llegada, 
-                    "Minutos": minutos
+                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": cedula, "Mensajero": nombre,
+                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
+                    "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
+                    "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
                 }
                 
-                # 1. Guardar Local
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
                 
-                # 2. Enviar a Google
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    st.success("¡Enviado a Drive y actualizado!")
+                    st.success("¡Enviado y tiempos actualizados!")
                 except:
-                    st.warning("Guardado local (Sin internet).")
+                    st.warning("Guardado local (Sin conexión).")
                 
-                # 3. EL CAMBIO CLAVE: Actualizar hora de inicio para el siguiente viaje
+                # ACTUALIZACIÓN DE HORA PARA SIGUIENTE VIAJE
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
                 
-                # Limpiar campos de selección
-                for k in ['c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val', 'txt_ext']:
+                # --- LIMPIEZA TOTAL DE CAMPOS ---
+                # Borramos ciudad y empresa para que vuelvan a "--"
+                for k in ['sel_ciu', 'sel_emp', 'c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val', 'txt_ext']:
                     if k in st.session_state: del st.session_state[k]
                 
                 time.sleep(1)
                 st.rerun()
 
-# Mostrar últimos registros locales
 if os.path.exists(DB_LOCAL):
     st.markdown("---")
     st.subheader("📋 Últimos registros de hoy")
     try:
         df_rev = pd.read_csv(DB_LOCAL)
         st.dataframe(df_rev.tail(5), use_container_width=True)
-    except:
-        pass
+    except: pass
