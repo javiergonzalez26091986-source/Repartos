@@ -34,14 +34,14 @@ def leer_usuario():
     if os.path.exists(PERSISTENCIA_USER):
         with open(PERSISTENCIA_USER, "r") as f:
             datos = f.read().split("|")
-            return datos[0], datos[1]
+            if len(datos) == 2: return datos[0], datos[1]
     return "", ""
 
 def finalizar_operacion():
     archivos = [PERSISTENCIA_INI, PERSISTENCIA_USER, DB_LOCAL]
     for arc in archivos:
         if os.path.exists(arc): os.remove(arc)
-    for key in st.session_state.keys():
+    for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.success("Operación finalizada. Limpiando datos...")
     time.sleep(1.5)
@@ -68,6 +68,7 @@ if cedula and nombre and (cedula != saved_ced or nombre != saved_nom):
     guardar_usuario(cedula, nombre)
 
 if cedula and nombre:
+    # SI NO HAY HORA REGISTRADA (INICIO DE JORNADA)
     if st.session_state['hora_referencia'] == "":
         st.subheader("🚀 Iniciar Jornada")
         h_ini = st.time_input("Salida de Base:", datetime.now(col_tz))
@@ -77,6 +78,7 @@ if cedula and nombre:
             guardar_memoria(hora_str)
             st.rerun()
     
+    # JORNADA EN CURSO
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state['hora_referencia']}")
         
@@ -102,136 +104,8 @@ if cedula and nombre:
         if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
-        # --- SELECCIÓN DE TIENDA CORREGIDA ---
-        tienda_final = "--"
-        codigo_final = ""
-        if empresa == "CAÑAVERAL":
-            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL, key="sel_can")
-        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
-            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
-            tiendas_ciu = dicc.get(ciudad, {})
-            # Se agrega un key dinámico usando el producto para evitar el error de duplicado
-            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()), key=f"sel_tie_{producto}")
-            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
-        elif empresa == "OTROS":
-            tienda_final = st.text_input("Escriba el nombre de la tienda:", key="txt_otro").upper()
-
-        # --- BOTÓN ENVIAR REGISTRO ---
-        if st.button("ENVIAR REGISTRO", type="primary"):
-            if tienda_final == "--" or tienda_final == "":
-                st.warning("Por favor seleccione o escriba una tienda.")
-            else:
-                hora_fin = datetime.now(col_tz).strftime("%H:%M")
-                hora_inicio = st.session_state['hora_referencia']
-                
-                datos = {
-                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
-                    "cedula": cedula, "nombre": nombre, "ciudad": ciudad,
-                    "producto": producto, "empresa": empresa, "tienda": tienda_final,
-                    "codigo": codigo_final, "hora_inicio": hora_inicio, "hora_fin": hora_fin
-                }
-                
-                try:
-                    res = requests.post(URL_GOOGLE_SCRIPT, data=datos)
-                    if res.status_code == 200:
-                        st.success(f"Registro exitoso. Siguiente inicio: {hora_fin}")
-                        # Actualización de tiempo para la siguiente entrega
-                        st.session_state['hora_referencia'] = hora_fin
-                        guardar_memoria(hora_fin)
-                        time.sleep(1.2)
-                        st.rerun()
-                    else:
-                        st.error("Error al enviar al Drive.")
-                except Exception as e:
-                    st.error(f"Error de conexión: {e}")
-        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
-            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
-            tiendas_ciu = dicc.get(ciudad, {})
-            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()))
-            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
-        elif empresa == "OTROS":
-            tienda_final = st.text_input("Escriba el nombre de la tienda:").upper()
-
-        # --- BOTÓN ENVIAR REGISTRO ---
-        if st.button("ENVIAR REGISTRO", type="primary"):
-            if tienda_final == "--" or tienda_final == "":
-                st.warning("Por favor seleccione o escriba una tienda.")
-            else:
-                # La hora actual es el Fin de esta entrega
-                hora_fin = datetime.now(col_tz).strftime("%H:%M")
-                # La hora guardada es el Inicio de esta entrega
-                hora_inicio = st.session_state['hora_referencia']
-                
-                datos = {
-                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
-                    "cedula": cedula, "nombre": nombre, "ciudad": ciudad,
-                    "producto": producto, "empresa": empresa, "tienda": tienda_final,
-                    "codigo": codigo_final, "hora_inicio": hora_inicio, "hora_fin": hora_fin
-                }
-                
-                try:
-                    res = requests.post(URL_GOOGLE_SCRIPT, data=datos)
-                    if res.status_code == 200:
-                        st.success(f"Registro exitoso. Siguiente inicio: {hora_fin}")
-                        # ACTUALIZACIÓN DE TIEMPO PARA LA SIGUIENTE ENTREGA
-                        st.session_state['hora_referencia'] = hora_fin
-                        guardar_memoria(hora_fin)
-                        
-                        time.sleep(1.2)
-                        st.rerun()
-                    else:
-                        st.error("Error al enviar al Drive.")
-                except Exception as e:
-                    st.error(f"Error de conexión: {e}")
-            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL)
-        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
-            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
-            tiendas_ciu = dicc.get(ciudad, {})
-            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()))
-            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
-        elif empresa == "OTROS":
-            tienda_final = st.text_input("Escriba el nombre de la tienda:").upper()
-
-        # --- REGISTRO DE ENTREGA (Lógica solicitada por Doña Yesenia) ---
-        if st.button("📥 REGISTRAR ENTREGA", type="secondary"):
-            if tienda_final == "--" or tienda_final == "":
-                st.warning("Por favor seleccione o escriba una tienda.")
-            else:
-                # 1. Obtener la hora actual del registro (Fin de la entrega)
-                hora_fin = datetime.now(col_tz).strftime("%H:%M")
-                hora_inicio = st.session_state['hora_referencia']
-                
-                # 2. Datos para enviar
-                datos = {
-                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
-                    "cedula": cedula,
-                    "nombre": nombre,
-                    "ciudad": ciudad,
-                    "producto": producto,
-                    "empresa": empresa,
-                    "tienda": tienda_final,
-                    "codigo": codigo_final,
-                    "hora_inicio": hora_inicio,
-                    "hora_fin": hora_fin
-                }
-                
-                try:
-                    response = requests.post(URL_GOOGLE_SCRIPT, data=datos)
-                    if response.status_code == 200:
-                        st.success(f"Entrega en {tienda_final} registrada con éxito.")
-                        
-                        # --- EL CAMBIO CLAVE ---
-                        # El fin de esta entrega se convierte en el inicio de la siguiente
-                        st.session_state['hora_referencia'] = hora_fin
-                        guardar_memoria(hora_fin)
-                        
-                        time.sleep(1.5)
-                        st.rerun()
-                    else:
-                        st.error("Error al conectar con el servidor.")
-                except Exception as e:
-                    st.error(f"Error de conexión: {e}")
         info = None
+        # LÓGICA DE SELECCIÓN SEGÚN EMPRESA
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
                 col1, col2 = st.columns(2)
@@ -240,65 +114,81 @@ if cedula and nombre:
                 if o != "--" and d != "--": info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
             
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
+                dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
+                ops = ["--"] + sorted(list(dic.keys()))
                 if producto == "PANADERÍA":
-                    dic = TIENDAS_PANADERIA.get(ciudad, {})
-                    ops = ["--"] + sorted(list(dic.keys()))
                     col1, col2 = st.columns(2)
                     with col1: o = st.selectbox("📦 Recoge en:", ops, key="p_o_v")
                     with col2: d = st.selectbox("🏠 Entrega en:", ops, key="p_d_v")
                     if o != "--" and d != "--": info = {"TO": o, "CO": dic[o], "TD": d, "CD": dic[d]}
                 else:
-                    dic = TIENDAS_POLLOS.get(ciudad, {})
-                    ops = ["--"] + sorted(list(dic.keys()))
                     t = st.selectbox("🏪 Tienda de Entrega:", ops, key="pol_gen")
                     if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic.get(t, "N/A")}
             
             else:
-                t_otros = st.text_input("Escriba la tienda/empresa externa:").upper()
+                t_otros = st.text_input("Escriba la tienda/empresa externa:", key="txt_ext").upper()
                 if t_otros: info = {"TO": "OTRO", "CO": "N/A", "TD": t_otros, "CD": "N/A"}
 
+        # --- BOTÓN UNIFICADO ENVIAR REGISTRO ---
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="cant_val")
-            if st.button("ENVIAR REGISTRO ✅", use_container_width=True):
+            if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de tiempo
-                t_ini = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
-                t_fin = datetime.strptime(h_llegada, "%H:%M")
-                minutos = int((t_fin - t_ini).total_seconds() / 60)
-                if minutos < 0: minutos += 1440
-                
+                # Cálculo de tiempo (Minutos)
+                try:
+                    t_ini = datetime.strptime(st.session_state['hora_referencia'], "%H:%M")
+                    t_fin = datetime.strptime(h_llegada, "%H:%M")
+                    minutos = int((t_fin - t_ini).total_seconds() / 60)
+                    if minutos < 0: minutos += 1440
+                except:
+                    minutos = 0
+
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": cedula, "Mensajero": nombre,
-                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
-                    "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
-                    "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
+                    "Fecha": ahora.strftime("%d/%m/%Y"), 
+                    "Cedula": cedula, 
+                    "Mensajero": nombre,
+                    "Empresa": empresa, 
+                    "Ciudad": ciudad, 
+                    "Producto": producto,
+                    "Tienda_O": info["TO"], 
+                    "Cod_O": info["CO"], 
+                    "Cod_D": info["CD"], 
+                    "Tienda_D": info["TD"],
+                    "Cant": int(cant), 
+                    "Inicio": st.session_state['hora_referencia'], 
+                    "Llegada": h_llegada, 
+                    "Minutos": minutos
                 }
                 
-                # Guardar y Enviar
+                # 1. Guardar Local
                 pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
-                try:
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    st.success("¡Enviado a la nube!")
-                except:
-                    st.warning("Sin conexión. Guardado localmente.")
                 
-                # Actualizamos la hora de inicio para el siguiente viaje
+                # 2. Enviar a Google
+                try:
+                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
+                    st.success("¡Enviado a Drive y actualizado!")
+                except:
+                    st.warning("Guardado local (Sin internet).")
+                
+                # 3. EL CAMBIO CLAVE: Actualizar hora de inicio para el siguiente viaje
                 st.session_state['hora_referencia'] = h_llegada
                 guardar_memoria(h_llegada)
                 
-                # Limpiar solo selección de tiendas, no el usuario ni la hora
-                for k in ['c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val']:
+                # Limpiar campos de selección
+                for k in ['c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val', 'txt_ext']:
                     if k in st.session_state: del st.session_state[k]
                 
+                time.sleep(1)
                 st.rerun()
 
 # Mostrar últimos registros locales
 if os.path.exists(DB_LOCAL):
     st.markdown("---")
     st.subheader("📋 Últimos registros de hoy")
-    st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
-
-
-
+    try:
+        df_rev = pd.read_csv(DB_LOCAL)
+        st.dataframe(df_rev.tail(5), use_container_width=True)
+    except:
+        pass
