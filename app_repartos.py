@@ -102,11 +102,48 @@ if cedula and nombre:
         if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
-        # SELECCIÓN DE TIENDA
+        # --- SELECCIÓN DE TIENDA CORREGIDA ---
         tienda_final = "--"
         codigo_final = ""
         if empresa == "CAÑAVERAL":
-            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL)
+            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL, key="sel_can")
+        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
+            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
+            tiendas_ciu = dicc.get(ciudad, {})
+            # Se agrega un key dinámico usando el producto para evitar el error de duplicado
+            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()), key=f"sel_tie_{producto}")
+            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
+        elif empresa == "OTROS":
+            tienda_final = st.text_input("Escriba el nombre de la tienda:", key="txt_otro").upper()
+
+        # --- BOTÓN ENVIAR REGISTRO ---
+        if st.button("ENVIAR REGISTRO", type="primary"):
+            if tienda_final == "--" or tienda_final == "":
+                st.warning("Por favor seleccione o escriba una tienda.")
+            else:
+                hora_fin = datetime.now(col_tz).strftime("%H:%M")
+                hora_inicio = st.session_state['hora_referencia']
+                
+                datos = {
+                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
+                    "cedula": cedula, "nombre": nombre, "ciudad": ciudad,
+                    "producto": producto, "empresa": empresa, "tienda": tienda_final,
+                    "codigo": codigo_final, "hora_inicio": hora_inicio, "hora_fin": hora_fin
+                }
+                
+                try:
+                    res = requests.post(URL_GOOGLE_SCRIPT, data=datos)
+                    if res.status_code == 200:
+                        st.success(f"Registro exitoso. Siguiente inicio: {hora_fin}")
+                        # Actualización de tiempo para la siguiente entrega
+                        st.session_state['hora_referencia'] = hora_fin
+                        guardar_memoria(hora_fin)
+                        time.sleep(1.2)
+                        st.rerun()
+                    else:
+                        st.error("Error al enviar al Drive.")
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
         elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
             dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
             tiendas_ciu = dicc.get(ciudad, {})
@@ -262,5 +299,6 @@ if os.path.exists(DB_LOCAL):
     st.markdown("---")
     st.subheader("📋 Últimos registros de hoy")
     st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
+
 
 
