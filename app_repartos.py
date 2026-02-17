@@ -12,7 +12,7 @@ st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
-PERSISTENCIA_USER = "user_respaldo.txt" # Nuevo: para no reescribir nombre/cédula
+PERSISTENCIA_USER = "user_respaldo.txt"
 DB_LOCAL = "registro_diario_respaldo.csv"
 
 # --- FUNCIONES DE CONTROL ---
@@ -47,7 +47,7 @@ def finalizar_operacion():
     time.sleep(1.5)
     st.rerun()
 
-# --- INICIALIZACIÓN DE ESTADO (PERSISTENCIA REAL) ---
+# --- INICIALIZACIÓN DE ESTADO ---
 if 'hora_referencia' not in st.session_state:
     st.session_state['hora_referencia'] = leer_memoria()
 
@@ -61,16 +61,13 @@ with st.sidebar:
         finalizar_operacion()
 
 c1, c2 = st.columns(2)
-# Usamos el valor guardado si existe
 cedula = c1.text_input("Cédula:", value=saved_ced, key="ced")
 nombre = c2.text_input("Nombre:", value=saved_nom, key="nom").upper()
 
-# Si el usuario escribe sus datos, los guardamos para persistencia tras bloqueo
 if cedula and nombre and (cedula != saved_ced or nombre != saved_nom):
     guardar_usuario(cedula, nombre)
 
 if cedula and nombre:
-    # SI NO HAY HORA EN MEMORIA NI EN SESSION STATE
     if st.session_state['hora_referencia'] == "":
         st.subheader("🚀 Iniciar Jornada")
         h_ini = st.time_input("Salida de Base:", datetime.now(col_tz))
@@ -80,11 +77,10 @@ if cedula and nombre:
             guardar_memoria(hora_str)
             st.rerun()
     
-    # SI YA HAY UNA HORA REGISTRADA (LA APP CONTINÚA AQUÍ SIEMPRE)
     else:
-        st.info(f"✅ **Hora de Referencia:** {st.session_state['hora_referencia']}")
+        st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state['hora_referencia']}")
         
-        # --- BASES DE DATOS (Se mantienen igual) ---
+        # --- BASES DE DATOS ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_PANADERIA = {
@@ -92,7 +88,6 @@ if cedula and nombre:
             'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
         }
         
-        # (Aquí va tu diccionario TIENDAS_POLLOS igual que lo tenías...)
         TIENDAS_POLLOS = {
             'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'},
             'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452', 'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758', 'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070', 'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557', 'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665', 'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776', 'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778', 'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'},
@@ -107,6 +102,59 @@ if cedula and nombre:
         if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
 
+        # --- SELECCIÓN DINÁMICA DE TIENDA ---
+        tienda_final = "--"
+        codigo_final = ""
+        
+        if empresa == "CAÑAVERAL":
+            tienda_final = st.selectbox("🏪 Tienda Cañaveral:", ["--"] + LISTA_CANAVERAL)
+        elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER" and ciudad != "--":
+            dicc = TIENDAS_POLLOS if producto == "POLLOS" else TIENDAS_PANADERIA
+            tiendas_ciu = dicc.get(ciudad, {})
+            tienda_final = st.selectbox("🏪 Tienda:", ["--"] + list(tiendas_ciu.keys()))
+            if tienda_final != "--": codigo_final = tiendas_ciu[tienda_final]
+        elif empresa == "OTROS":
+            tienda_final = st.text_input("Escriba el nombre de la tienda:").upper()
+
+        # --- REGISTRO DE ENTREGA (Lógica solicitada por Doña Yesenia) ---
+        if st.button("📥 REGISTRAR ENTREGA", type="secondary"):
+            if tienda_final == "--" or tienda_final == "":
+                st.warning("Por favor seleccione o escriba una tienda.")
+            else:
+                # 1. Obtener la hora actual del registro (Fin de la entrega)
+                hora_fin = datetime.now(col_tz).strftime("%H:%M")
+                hora_inicio = st.session_state['hora_referencia']
+                
+                # 2. Datos para enviar
+                datos = {
+                    "fecha": datetime.now(col_tz).strftime("%d/%m/%Y"),
+                    "cedula": cedula,
+                    "nombre": nombre,
+                    "ciudad": ciudad,
+                    "producto": producto,
+                    "empresa": empresa,
+                    "tienda": tienda_final,
+                    "codigo": codigo_final,
+                    "hora_inicio": hora_inicio,
+                    "hora_fin": hora_fin
+                }
+                
+                try:
+                    response = requests.post(URL_GOOGLE_SCRIPT, data=datos)
+                    if response.status_code == 200:
+                        st.success(f"Entrega en {tienda_final} registrada con éxito.")
+                        
+                        # --- EL CAMBIO CLAVE ---
+                        # El fin de esta entrega se convierte en el inicio de la siguiente
+                        st.session_state['hora_referencia'] = hora_fin
+                        guardar_memoria(hora_fin)
+                        
+                        time.sleep(1.5)
+                        st.rerun()
+                    else:
+                        st.error("Error al conectar con el servidor.")
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
         info = None
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
@@ -175,3 +223,4 @@ if os.path.exists(DB_LOCAL):
     st.markdown("---")
     st.subheader("📋 Últimos registros de hoy")
     st.dataframe(pd.read_csv(DB_LOCAL).tail(5), use_container_width=True)
+
