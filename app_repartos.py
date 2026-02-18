@@ -26,7 +26,6 @@ st.markdown("""
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
 # --- LÓGICA DE PERSISTENCIA EN DISCO DURO (LOCALSTORAGE) ---
-# Intentamos recuperar datos guardados en el dispositivo antes de mirar la URL
 js_get_data = """
 (async () => {
     return {
@@ -41,7 +40,6 @@ local_data = st_javascript(js_get_data)
 # --- BLOQUE DE PERSISTENCIA (URL A SESSION STATE) ---
 params = st.query_params
 
-# Prioridad 1: URL | Prioridad 2: Disco Duro (LocalStorage)
 if "ced" in params: st.session_state.cedula = params["ced"]
 elif local_data and local_data.get('ced'): st.session_state.cedula = local_data['ced']
 
@@ -56,27 +54,17 @@ if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 
 def actualizar_url_y_disco():
-    # Actualiza URL
     st.query_params.update({
         "ced": st.session_state.cedula,
         "nom": st.session_state.nombre,
         "hor": st.session_state.hora_ref
     })
-    # Guarda en el disco duro del celular
     st_javascript(f"localStorage.setItem('sergem_ced', '{st.session_state.cedula}');")
     st_javascript(f"localStorage.setItem('sergem_nom', '{st.session_state.nombre}');")
     st_javascript(f"localStorage.setItem('sergem_hor', '{st.session_state.hora_ref}');")
 
 # --- INTERFAZ ---
 st.title("🛵 Control de entregas SERGEM")
-
-with st.sidebar:
-    if st.button("🏁 FINALIZAR DÍA", type="primary"):
-        # Borra Disco Duro, URL y Sesión
-        st_javascript("localStorage.clear();")
-        st.query_params.clear()
-        st.session_state.clear()
-        st.rerun()
 
 # Identificación
 c1, c2 = st.columns(2)
@@ -117,13 +105,11 @@ if st.session_state.cedula and st.session_state.nombre:
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
         
-        # Filtro de Producto
         opciones_producto = ["POLLOS", "PANADERIA"]
         if ciudad == "MANIZALES": opciones_producto = ["PANADERIA"]
         elif ciudad in ["MEDELLIN", "BOGOTA"]: opciones_producto = ["POLLOS"]
         with f2: producto = st.radio("📦 Producto:", opciones_producto, horizontal=True, key="s_prod")
         
-        # Filtro de Empresa
         opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
         if ciudad == "CALI": opciones_empresa.append("CAÑAVERAL")
         empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="s_emp")
@@ -155,7 +141,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Tiempo
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -168,13 +153,10 @@ if st.session_state.cedula and st.session_state.nombre:
                     "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
                 }
                 
-                try:
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                except:
-                    pass 
+                try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
+                except: pass 
 
                 st.session_state.hora_ref = h_llegada
-                # ACTUALIZACIÓN CRÍTICA: Guardamos la nueva hora base en disco y URL
                 actualizar_url_y_disco()
                 
                 for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
@@ -183,3 +165,11 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.success(f"Registro Procesado. Nueva hora base: {h_llegada}")
                 time.sleep(1.5)
                 st.rerun()
+
+    # --- BOTÓN FINALIZAR DÍA (UBICADO ABAJO PARA MEJOR VISIBILIDAD EN CELULAR) ---
+    st.write("---")
+    if st.button("🏁 FINALIZAR DÍA", type="primary", use_container_width=True):
+        st_javascript("localStorage.clear();")
+        st.query_params.clear()
+        st.session_state.clear()
+        st.rerun()
