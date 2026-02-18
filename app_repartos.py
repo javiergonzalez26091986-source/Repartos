@@ -78,16 +78,19 @@ if st.session_state.cedula and st.session_state.nombre:
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
         
-        # --- LÓGICA DE FILTRO DE PRODUCTOS ACTUALIZADA ---
+        # Filtro de Productos
         opciones_producto = ["POLLOS", "PANADERIA"]
-        if ciudad == "MANIZALES":
-            opciones_producto = ["PANADERIA"]
-        elif ciudad in ["MEDELLIN", "BOGOTA"]:
-            opciones_producto = ["POLLOS"]
+        if ciudad == "MANIZALES": opciones_producto = ["PANADERIA"]
+        elif ciudad in ["MEDELLIN", "BOGOTA"]: opciones_producto = ["POLLOS"]
             
         with f2: producto = st.radio("📦 Producto:", opciones_producto, horizontal=True, key="s_prod")
         
-        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"], key="s_emp")
+        # --- LÓGICA DE FILTRO DE EMPRESA (Solo Cali ve Cañaveral) ---
+        opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
+        if ciudad == "CALI":
+            opciones_empresa.append("CAÑAVERAL")
+            
+        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
