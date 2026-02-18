@@ -9,7 +9,7 @@ import time
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
-# --- BLOQUE DE SEGURIDAD ABSOLUTA (INTACTO) ---
+# --- BLOQUE DE SEGURIDAD ABSOLUTA (MANTENIDO) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -23,17 +23,17 @@ st.markdown("""
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- FUNCIÓN DE RECUPERACIÓN (NUEVA PARA EVITAR PÉRDIDA) ---
+# --- FUNCIÓN DE RECUPERACIÓN ---
 def recuperar_sesion(cedula):
     try:
-        # Consulta al Google Script por el último registro de esa cédula
         r = requests.get(f"{URL_GOOGLE_SCRIPT}?cedula={cedula}", timeout=5)
         if r.status_code == 200:
-            return r.json() # Retorna {'nombre': '...', 'hora': '...'}
+            return r.json()
     except:
         return None
+    return None
 
-# --- LÓGICA DE PERSISTENCIA ---
+# --- ESTADO DE SESIÓN ---
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
@@ -48,21 +48,26 @@ with st.sidebar:
 
 # Identificación
 c1, c2 = st.columns(2)
+
+# Campo Cédula con lógica de recuperación mejorada
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 
-# SI LA APP SE CERRÓ Y VUELVE A ABRIR: al poner la cédula recupera todo
+# Solo busca si la cédula cambió y no está vacía
 if ced_input and ced_input != st.session_state.cedula:
-    datos_nube = recuperar_sesion(ced_input)
-    st.session_state.cedula = ced_input
-    if datos_nube and datos_nube.get("encontrado"):
-        st.session_state.nombre = datos_nube.get("nombre")
-        st.session_state.hora_ref = datos_nube.get("hora")
-    st.rerun()
+    with st.spinner("Buscando registro..."):
+        res = recuperar_sesion(ced_input)
+        st.session_state.cedula = ced_input
+        if res and res.get("encontrado"):
+            st.session_state.nombre = res.get("nombre")
+            st.session_state.hora_ref = res.get("hora")
+            st.rerun()
 
+# Campo Nombre (ahora te dejará escribir o mostrará lo recuperado)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
 if nom_input != st.session_state.nombre:
     st.session_state.nombre = nom_input
 
+# --- LÓGICA DE TRABAJO (TUS BASES DE DATOS INTACTAS ABAJO) ---
 if st.session_state.cedula and st.session_state.nombre:
     
     if not st.session_state.hora_ref:
@@ -73,12 +78,12 @@ if st.session_state.cedula and st.session_state.nombre:
     else:
         st.success(f"✅ **Mensajero:** {st.session_state.nombre} | **Hora Base:** {st.session_state.hora_ref}")
         
-        # --- TUS BASES DE DATOS (INTACTAS) ---
+        # --- BASES DE DATOS ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         TIENDAS_POLLOS = {'CALI': {'Super Inter Popular': '4210', 'Super Inter Guayacanes': '4206', 'Super Inter Unico Salomia': '4218', 'Super Inter Villa Colombia': '4215', 'Super Inter El Sembrador': '4216', 'Super Inter Siloe': '4223', 'Super Inter San Fernando': '4232', 'Super Inter Buenos Aires': '4262', 'Super Inter Valdemoro': '4233', 'Carulla la Maria': '4781', 'Super Inter Express Av. Sexta': '4212', 'Super Inter Pasarela': '4214', 'Super Inter Primavera': '4271', 'Super Inter Independencia': '4261', 'Carulla Pasoancho': '4799', 'éxito Cra Octava (L)': '650'}, 'MEDELLIN': {'éxito express Ciudad del Rio': '197', 'Carulla Sao Paulo': '341', 'Carulla express Villa Grande': '452', 'Surtimax Centro de la Moda': '516', 'Surtimax Trianon': '745', 'Surtimax San Javier Metro': '758', 'éxito Indiana Mall': '4042', 'éxito San Javier': '4067', 'éxito Gardel': '4070', 'Surtimax Camino Verde': '4381', 'Surtimax Caldas': '4534', 'Surtimax Pilarica': '4557', 'Carulla express Padre Marianito': '4664', 'Carulla express EDS la Sierra': '4665', 'Carulla express Parque Poblado': '4669', 'Carulla express la América': '4776', 'Carulla express Nutibara': '4777', 'Carulla express Laureles': '4778', 'Carulla express Divina Eucaristia': '4829', 'Carulla express Loma Escobero': '4878'}, 'BOGOTA': {'éxito express Embajada': '110', 'éxito express Colseguros (CAF)': '301', 'Surtimax Brasil Bosa': '311', 'Surtimax Casa Blanca (CAF)': '434', 'Surtimax la Española': '449', 'Surtimax San Antonio': '450', 'éxito express Bima': '459', 'Surtimax Barrancas': '467', 'Carulla express Cedritos': '468', 'Surtimax Nueva Roma': '470', 'Surtimax Tibabuyes': '473', 'Surtimax Trinitaria': '474', 'Surtimax la Gloria': '481', 'Surtimax San Fernando': '511', 'Carulla calle 147': '549', 'éxito Plaza Bolivar': '558', 'Surtimax Tocancipá': '573', 'Surtimax San Mateo': '575', 'Surtimax Cajicá': '576', 'Surtimax Sopó': '577', 'Surtimax Compartir Soacha': '579', 'Surtimax Santa Rita': '623', 'éxito express Cra 15 con 100': '657', 'Surtimax la Calera': '703', 'Surtimax Yanguas': '709', 'Surtimax el Socorro': '768', 'Surtimax el Recreo Bosa': '781', 'Carulla la Calera': '886', 'éxito Primavera calle 80': '4068', 'éxito Parque Fontibon': '4069', 'éxito Pradilla': '4071', 'éxito Ciudadel': '4082', 'éxito express Cra 24 83-22': '4187', 'Surtimax Chapinero': '4523', 'Surtimax Lijaca': '4524', 'Surtimax Quiroga': '4527', 'Surtimax Suba Bilbao': '4533', 'Surtimax Santa Isabel': '4539', 'Carulla BACATA': '4813', 'Carulla SMARTMARKET': '4814', 'Carulla LA PRADERA DE POTOSÍ': '4818', 'Carulla EXPRESS C109 C14': '4822', 'Carulla EXPRESS SIBERIA': '4825', 'Carulla EXPRESS CALLE 90': '4828', 'Carulla EXPRESS PONTEVEDRA': '4836', 'Carulla EXPRESS CARRERA 7': '4839', 'Carulla EXPRESS SALITRE': '4875', 'Carulla EXPRESS CORFERIAS': '4876'}}
         TIENDAS_PANADERIA = {'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540'}, 'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}}
 
-        # Selectores
+        # Selectores (CIUDAD, PRODUCTO, EMPRESA)
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
         opciones_producto = ["POLLOS", "PANADERIA"]
@@ -131,7 +136,7 @@ if st.session_state.cedula and st.session_state.nombre:
                 try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                 except: pass 
 
-                st.session_state.hora_ref = h_llegada # Se actualiza para el siguiente viaje
+                st.session_state.hora_ref = h_llegada
                 
                 for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
