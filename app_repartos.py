@@ -19,17 +19,10 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
-# Recuperar datos de la URL al refrescar
-params = st.query_params
-if "ced" in params and 'cedula' not in st.session_state:
-    st.session_state.cedula = params["ced"]
-    st.session_state.nombre = params["nom"]
-    st.session_state.hora_ref = params["hor"]
-
-# Inicializar estados si no existen
-if 'cedula' not in st.session_state: st.session_state.cedula = ""
-if 'nombre' not in st.session_state: st.session_state.nombre = ""
-if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
+# Inicializar estados desde la URL si existen
+if 'cedula' not in st.session_state: st.session_state.cedula = st.query_params.get("ced", "")
+if 'nombre' not in st.session_state: st.session_state.nombre = st.query_params.get("nom", "")
+if 'hora_ref' not in st.session_state: st.session_state.hora_ref = st.query_params.get("hor", "")
 
 # --- INTERFAZ ---
 st.title("🛵 Control de entregas SERGEM")
@@ -45,7 +38,6 @@ c1, c2 = st.columns(2)
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
 
-# Sincronizar inputs con la URL
 if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
     st.session_state.cedula = ced_input
     st.session_state.nombre = nom_input
@@ -53,52 +45,59 @@ if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
 
 if st.session_state.cedula and st.session_state.nombre:
     
-    # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
-            h_act = datetime.now(col_tz).strftime("%H:%M")
-            st.session_state.hora_ref = h_act
+            st.session_state.hora_ref = datetime.now(col_tz).strftime("%H:%M")
             actualizar_url()
             st.rerun()
     
-    # 2. FORMULARIO DE ENTREGAS
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS ---
+        # --- BASES DE DATOS EXTRAÍDAS DE TU ARCHIVO ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
+        
+        TIENDAS_POLLOS = {
+            'CALI': {'Super Inter Popular': '4210', 'Super Inter Guayacanes': '4206', 'Super Inter Unico Salomia': '4218', 'Super Inter Villa Colombia': '4215', 'Super Inter El Sembrador': '4216', 'Super Inter Siloe': '4223', 'Super Inter San Fernando': '4232', 'Super Inter Buenos Aires': '4262', 'Super Inter Valdemoro': '4233', 'Carulla la Maria': '4781', 'Super Inter Express Av. Sexta': '4212', 'Super Inter Pasarela': '4214', 'Super Inter Primavera': '4271', 'Super Inter Independencia': '4261', 'Carulla Pasoancho': '4799', 'éxito Cra Octava (L)': '650'},
+            'MEDELLIN': {'éxito express Ciudad del Rio': '197', 'Carulla Sao Paulo': '341', 'Carulla express Villa Grande': '452', 'Surtimax Centro de la Moda': '516', 'Surtimax Trianon': '745', 'Surtimax San Javier Metro': '758', 'éxito Indiana Mall': '4042', 'éxito San Javier': '4067', 'éxito Gardel': '4070', 'Surtimax Camino Verde': '4381', 'Surtimax Caldas': '4534', 'Surtimax Pilarica': '4557', 'Carulla express Padre Marianito': '4664', 'Carulla express EDS la Sierra': '4665', 'Carulla express Parque Poblado': '4669', 'Carulla express la América': '4776', 'Carulla express Nutibara': '4777', 'Carulla express Laureles': '4778', 'Carulla express Divina Eucaristia': '4829', 'Carulla express Loma Escobero': '4878'},
+            'BOGOTA': {'éxito express Embajada': '110', 'éxito express Colseguros (CAF)': '301', 'Surtimax Brasil Bosa': '311', 'Surtimax Casa Blanca (CAF)': '434', 'Surtimax la Española': '449', 'Surtimax San Antonio': '450', 'éxito express Bima': '459', 'Surtimax Barrancas': '467', 'Carulla express Cedritos': '468', 'Surtimax Nueva Roma': '470', 'Surtimax Tibabuyes': '473', 'Surtimax Trinitaria': '474', 'Surtimax la Gloria': '481', 'Surtimax San Fernando': '511', 'Carulla calle 147': '549', 'éxito Plaza Bolivar': '558', 'Surtimax Tocancipá': '573', 'Surtimax San Mateo': '575', 'Surtimax Cajicá': '576', 'Surtimax Sopó': '577', 'Surtimax Compartir Soacha': '579', 'Surtimax Santa Rita': '623', 'éxito express Cra 15 con 100': '657', 'Surtimax la Calera': '703', 'Surtimax Yanguas': '709', 'Surtimax el Socorro': '768', 'Surtimax el Recreo Bosa': '781', 'Carulla la Calera': '886', 'éxito Primavera calle 80': '4068', 'éxito Parque Fontibon': '4069', 'éxito Pradilla': '4071', 'éxito Ciudadel': '4082', 'éxito express Cra 24 83-22': '4187', 'Surtimax Chapinero': '4523', 'Surtimax Lijaca': '4524', 'Surtimax Quiroga': '4527', 'Surtimax Suba Bilbao': '4533', 'Surtimax Santa Isabel': '4539', 'Carulla Bacata': '4813', 'Carulla Smartmarket': '4814', 'Carulla la Pradera de Potosí': '4818', 'Carulla express C109 C14': '4822', 'Carulla express Siberia': '4825', 'Carulla express calle 90': '4828', 'Carulla express Pontevedra': '4836', 'Carulla express Carrera 7': '4839', 'Carulla express Salitre': '4875', 'Carulla express Corferias': '4876'}
+        }
         
         TIENDAS_PANADERIA = {
             'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540'},
             'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
         }
-        
-        TIENDAS_POLLOS = {
-            'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'},
-            'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452', 'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758', 'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070', 'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557', 'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665', 'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776', 'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778', 'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'},
-            'BOGOTÁ': {'ÉXITO EXPRESS EMBAJADA': '110', 'ÉXITO EXPRESS COLSEGUROS (CAF)': '301', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX CASA BLANCA (CAF)': '434', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450', 'ÉXITO EXPRESS BIMA': '459', 'SURTIMAX BARRANCAS': '467', 'CARULLA EXPRESS CEDRITOS': '468', 'SURTIMAX NUEVA ROMA': '470', 'SURTIMAX TIBABUYES': '473', 'SURTIMAX TRINITARIA': '474', 'SURTIMAX LA GLORIA': '481', 'SURTIMAX SAN FERNANDO': '511', 'CARULLA CALLE 147': '549', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX TOCANCIPÁ': '573', 'SURTIMAX SAN MATEO': '575', 'SURTIMAX CAJICÁ': '576', 'SURTIMAX SOPÓ': '577', 'SURTIMAX COMPARTIR SOACHA': '579', 'SURTIMAX SANTA RITA': '623', 'ÉXITO EXPRESS CRA 15 CON 100': '657', 'SURTIMAX LA CALERA': '703', 'SURTIMAX YANGUAS': '709', 'SURTIMAX EL SOCORRO': '768', 'SURTIMAX EL RECREO BOSA': '781', 'CARULLA LA CALERA': '886', 'ÉXITO PRIMAVERA CALLE 80': '4068', 'ÉXITO PARQUE FONTIBON': '4069', 'ÉXITO PRADILLA': '4071', 'ÉXITO CIUDADEL': '4082', 'ÉXITO EXPRESS CRA 24 83-22': '4187', 'SURTIMAX CHAPINERO': '4523', 'SURTIMAX LIJACA': '4524', 'SURTIMAX QUIROGA': '4527', 'SURTIMAX SUBA BILBAO': '4533', 'SURTIMAX SANTA ISABEL': '4539', 'CARULLA BACATA': '4813', 'CARULLA SMARTMARKET': '4814', 'CARULLA LA PRADERA DE POTOSÍ': '4818', 'CARULLA EXPRESS C109 C14': '4822', 'CARULLA EXPRESS SIBERIA': '4825', 'CARULLA EXPRESS CALLE 90': '4828', 'CARULLA EXPRESS PONTEVEDRA': '4836', 'CARULLA EXPRESS CARRERA 7': '4839', 'CARULLA EXPRESS SALITRE': '4875', 'CARULLA EXPRESS CORFERIAS': '4876'}
-        }
 
         f1, f2 = st.columns(2)
-        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
-        with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
+        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
+        with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERIA"], horizontal=True, key="s_prod")
         
-        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL", "OTROS"], key="s_emp")
+        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"], key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
+            # 1. CASO CAÑAVERAL
             if empresa == "CAÑAVERAL":
-                co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
-                cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
+                col_c1, col_c2 = st.columns(2)
+                with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
+                with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
+            
+            # 2. CASO EXITO-CARULLA-SURTIMAX-SUPERINTER
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
-                dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
-                t = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="ct")
-                if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
-            else:
-                ext = st.text_input("Nombre Externo:", key="ce").upper()
-                if ext: info = {"TO": "OTRO", "CO": "N/A", "TD": ext, "CD": "N/A"}
+                if producto == "PANADERIA":
+                    dic = TIENDAS_PANADERIA.get(ciudad, {})
+                    if dic:
+                        cp1, cp2 = st.columns(2)
+                        with cp1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
+                        with cp2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                        if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
+                else: # POLLOS
+                    dic = TIENDAS_POLLOS.get(ciudad, {})
+                    if dic:
+                        t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
+                        if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -106,39 +105,19 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Calcular minutos
-                t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
-                t_fin = datetime.strptime(h_llegada, "%H:%M")
-                minutos = int((t_fin - t_ini).total_seconds() / 60)
-                if minutos < 0: minutos += 1440
-
                 payload = {
                     "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre,
                     "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
                     "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
-                    "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
+                    "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada
                 }
                 
-                status_placeholder = st.empty()
-                status_placeholder.warning("Enviando a base de datos...")
-
                 try:
-                    # Timeout de 20 segundos para evitar errores falsos
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    status_placeholder.success(f"¡Registro Exitoso! Nueva hora de inicio: {h_llegada}")
-                except requests.exceptions.ReadTimeout:
-                    status_placeholder.info("Registro procesado (Confirmación lenta).")
-                except Exception:
-                    status_placeholder.error("Error de red. Intente de nuevo.")
-                    st.stop()
-
-                # Actualizar hora para el siguiente viaje
-                st.session_state.hora_ref = h_llegada
-                actualizar_url()
-                
-                # Limpiar campos de tienda
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ce', 'ccant']:
-                    if k in st.session_state: del st.session_state[k]
-                
-                time.sleep(2)
-                st.rerun()
+                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
+                    st.success(f"¡Éxito! Nueva hora de inicio: {h_llegada}")
+                    st.session_state.hora_ref = h_llegada
+                    actualizar_url()
+                    time.sleep(1.5)
+                    st.rerun()
+                except:
+                    st.error("Error de conexión. Intente de nuevo.")
