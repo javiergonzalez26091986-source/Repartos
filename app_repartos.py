@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pdimport streamlit as st
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -10,7 +11,7 @@ from streamlit_javascript import st_javascript
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
-# --- BLOQUE DE SEGURIDAD ABSOLUTA PARA OCULTAR GITHUB Y MENÚ ---
+# --- BLOQUE DE SEGURIDAD Y ESTILOS PERSONALIZADOS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -20,12 +21,19 @@ st.markdown("""
     .stAppDeployButton {display:none;}
     div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     div[data-testid="stDecoration"] { display: none !important; }
+    
+    /* Botón ENVIAR REGISTRO en Verde */
+    div.stButton > button:first-child[kind="primary"] {
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+        color: white !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- LÓGICA DE PERSISTENCIA EN DISCO DURO (LOCALSTORAGE) ---
+# --- LÓGICA DE PERSISTENCIA EN DISCO DURO ---
 js_get_data = """
 (async () => {
     return {
@@ -37,7 +45,6 @@ js_get_data = """
 """
 local_data = st_javascript(js_get_data)
 
-# --- BLOQUE DE PERSISTENCIA (URL A SESSION STATE) ---
 params = st.query_params
 
 if "ced" in params: st.session_state.cedula = params["ced"]
@@ -78,7 +85,6 @@ if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
 
 if st.session_state.cedula and st.session_state.nombre:
     
-    # Lógica de Inicio de Jornada
     if not st.session_state.hora_ref or st.session_state.hora_ref in ["", "None"]:
         st.subheader("🚀 Iniciar Jornada")
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
@@ -88,7 +94,6 @@ if st.session_state.cedula and st.session_state.nombre:
     else:
         st.success(f"✅ **Mensajero:** {st.session_state.nombre} | **Hora Base:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS (Fieles al CSV) ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_POLLOS = {
@@ -101,7 +106,6 @@ if st.session_state.cedula and st.session_state.nombre:
             'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
         }
 
-        # Selectores
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
         
@@ -140,7 +144,6 @@ if st.session_state.cedula and st.session_state.nombre:
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
-                
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -158,7 +161,6 @@ if st.session_state.cedula and st.session_state.nombre:
 
                 st.session_state.hora_ref = h_llegada
                 actualizar_url_y_disco()
-                
                 for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
                 
@@ -166,10 +168,28 @@ if st.session_state.cedula and st.session_state.nombre:
                 time.sleep(1.5)
                 st.rerun()
 
-    # --- BOTÓN FINALIZAR DÍA (UBICADO ABAJO PARA MEJOR VISIBILIDAD EN CELULAR) ---
+    # --- SECCIÓN FINALIZAR DÍA CON SALIDA REAL ---
     st.write("---")
-    if st.button("🏁 FINALIZAR DÍA", type="primary", use_container_width=True):
-        st_javascript("localStorage.clear();")
-        st.query_params.clear()
-        st.session_state.clear()
-        st.rerun()
+    if "confirmar_cierre" not in st.session_state:
+        st.session_state.confirmar_cierre = False
+
+    if not st.session_state.confirmar_cierre:
+        if st.button("🏁 FINALIZAR DÍA", type="primary", use_container_width=True):
+            st.session_state.confirmar_cierre = True
+            st.rerun()
+    else:
+        st.warning("⚠️ **ATENCIÓN:** Esto reiniciará todo y saldrá de la App. ¿Desea continuar?")
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            if st.button("❌ VOLVER", use_container_width=True):
+                st.session_state.confirmar_cierre = False
+                st.rerun()
+        with col_c2:
+            if st.button("🚨 SÍ, SALIR Y REINICIAR", use_container_width=True, type="primary"):
+                # 1. Limpiar memoria local y de sesión
+                st_javascript("localStorage.clear();")
+                st.query_params.clear()
+                st.session_state.clear()
+                # 2. Redirigir a una página externa para "cerrar" la App visualmente
+                st_javascript("window.location.href = 'https://www.google.com';")
+                st.stop()
