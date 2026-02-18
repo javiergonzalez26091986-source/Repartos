@@ -19,7 +19,6 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
-# Inicializar estados desde la URL si existen
 if 'cedula' not in st.session_state: st.session_state.cedula = st.query_params.get("ced", "")
 if 'nombre' not in st.session_state: st.session_state.nombre = st.query_params.get("nom", "")
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = st.query_params.get("hor", "")
@@ -33,7 +32,6 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-# --- BLOQUE DE IDENTIFICACIÓN ---
 c1, c2 = st.columns(2)
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
@@ -51,11 +49,10 @@ if st.session_state.cedula and st.session_state.nombre:
             st.session_state.hora_ref = datetime.now(col_tz).strftime("%H:%M")
             actualizar_url()
             st.rerun()
-    
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS EXTRAÍDAS DE TU ARCHIVO ---
+        # --- BASES DE DATOS DEL CSV ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_POLLOS = {
@@ -77,14 +74,12 @@ if st.session_state.cedula and st.session_state.nombre:
 
         info = None
         if ciudad != "--" and empresa != "--":
-            # 1. CASO CAÑAVERAL
             if empresa == "CAÑAVERAL":
                 col_c1, col_c2 = st.columns(2)
                 with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
                 with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
             
-            # 2. CASO EXITO-CARULLA-SURTIMAX-SUPERINTER
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 if producto == "PANADERIA":
                     dic = TIENDAS_PANADERIA.get(ciudad, {})
@@ -105,19 +100,35 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
+                # --- LÓGICA DE CÁLCULO DE MINUTOS ---
+                t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
+                t_fin = datetime.strptime(h_llegada, "%H:%M")
+                minutos = int((t_fin - t_ini).total_seconds() / 60)
+                if minutos < 0: minutos += 1440 # Corrección si pasa de medianoche
+
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre,
-                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
-                    "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
-                    "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada
+                    "Fecha": ahora.strftime("%d/%m/%Y"), 
+                    "Cedula": st.session_state.cedula, 
+                    "Mensajero": st.session_state.nombre,
+                    "Empresa": empresa, 
+                    "Ciudad": ciudad, 
+                    "Producto": producto,
+                    "Tienda_O": info["TO"], 
+                    "Cod_O": info["CO"], 
+                    "Cod_D": info["CD"], 
+                    "Tienda_D": info["TD"],
+                    "Cant": int(cant), 
+                    "Inicio": st.session_state.hora_ref, 
+                    "Llegada": h_llegada,
+                    "Minutos": minutos
                 }
                 
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    st.success(f"¡Éxito! Nueva hora de inicio: {h_llegada}")
+                    st.success(f"¡Éxito! Tiempo total: {minutos} min. Nueva hora: {h_llegada}")
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
                     time.sleep(1.5)
                     st.rerun()
                 except:
-                    st.error("Error de conexión. Intente de nuevo.")
+                    st.error("Error al enviar. Intente nuevamente.")
