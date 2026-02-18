@@ -35,7 +35,7 @@ if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR DÍA", type="primary"):
+    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -56,7 +56,7 @@ if st.session_state.cedula and st.session_state.nombre:
     # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
+        if st.button("▶️INICIAR ENTREGAS", use_container_width=True):
             h_act = datetime.now(col_tz).strftime("%H:%M")
             st.session_state.hora_ref = h_act
             actualizar_url()
@@ -144,3 +144,4 @@ if st.session_state.cedula and st.session_state.nombre:
                 
                 time.sleep(2)
                 st.rerun()
+
