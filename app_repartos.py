@@ -11,18 +11,28 @@ st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- LÓGICA DE PERSISTENCIA POR URL ---
+# --- LÓGICA DE PERSISTENCIA (URL A SESSION STATE) ---
+# Esta parte es vital: lee la URL y si hay datos, los pone en el estado de la app
+params = st.query_params
+
+if "ced" in params and "cedula" not in st.session_state:
+    st.session_state.cedula = params["ced"]
+if "nom" in params and "nombre" not in st.session_state:
+    st.session_state.nombre = params["nom"]
+if "hor" in params and "hora_ref" not in st.session_state:
+    st.session_state.hora_ref = params["hor"]
+
+# Inicializar vacíos si no existen ni en URL ni en state
+if 'cedula' not in st.session_state: st.session_state.cedula = ""
+if 'nombre' not in st.session_state: st.session_state.nombre = ""
+if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
+
 def actualizar_url():
     st.query_params.update({
         "ced": st.session_state.cedula,
         "nom": st.session_state.nombre,
         "hor": st.session_state.hora_ref
     })
-
-# Inicializar estados
-if 'cedula' not in st.session_state: st.session_state.cedula = st.query_params.get("ced", "")
-if 'nombre' not in st.session_state: st.session_state.nombre = st.query_params.get("nom", "")
-if 'hora_ref' not in st.session_state: st.session_state.hora_ref = st.query_params.get("hor", "")
 
 # --- INTERFAZ ---
 st.title("🛵 Control de entregas SERGEM")
@@ -38,6 +48,7 @@ c1, c2 = st.columns(2)
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
 
+# Si el usuario cambia algo manualmente, actualizamos URL
 if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
     st.session_state.cedula = ced_input
     st.session_state.nombre = nom_input
@@ -45,16 +56,19 @@ if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
 
 if st.session_state.cedula and st.session_state.nombre:
     
-    if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
+    # Si no hay hora de inicio (ni en state ni en URL)
+    if not st.session_state.hora_ref or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
-            st.session_state.hora_ref = datetime.now(col_tz).strftime("%H:%M")
+            nueva_hora = datetime.now(col_tz).strftime("%H:%M")
+            st.session_state.hora_ref = nueva_hora
             actualizar_url()
             st.rerun()
     else:
-        st.info(f"✅ **Hora de Inicio:** {st.session_state.hora_ref}")
+        # Aquí se mantiene la hora aunque cierres la app
+        st.info(f"✅ **Hora de Inicio registrada:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS (Fieles a tu CSV) ---
+        # --- BASES DE DATOS DEL CSV ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_POLLOS = {
@@ -81,7 +95,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
                 with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
-            
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 if producto == "PANADERIA":
                     dic = TIENDAS_PANADERIA.get(ciudad, {})
@@ -102,7 +115,7 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # --- CÁLCULO DE TIEMPO ---
+                # Cálculo de tiempo
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -115,21 +128,21 @@ if st.session_state.cedula and st.session_state.nombre:
                     "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
                 }
                 
-                # ENVÍO CON MANEJO DE ERRORES MEJORADO
                 try:
-                    response = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    st.success(f"¡Registro Exitoso! Tiempo: {minutos} min.")
+                    # Enviar datos a Google
+                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
+                    st.success(f"¡Éxito! Nueva hora de inicio: {h_llegada}")
                     
-                    # ACTUALIZACIÓN Y LIMPIEZA DE CAMPOS
+                    # 1. La hora de llegada se convierte en la nueva hora de inicio
                     st.session_state.hora_ref = h_llegada
+                    # 2. Actualizamos la URL con la nueva hora
                     actualizar_url()
                     
-                    # Limpiar selectores para la siguiente entrega
-                    for key in ['s_ciu', 's_emp', 'co', 'cd', 'to', 'td', 'ct', 'ccant']:
-                        if key in st.session_state:
-                            del st.session_state[key]
+                    # 3. LIMPIEZA: Borramos los campos de selección para evitar errores
+                    for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
+                        if k in st.session_state: del st.session_state[k]
                     
                     time.sleep(1.5)
                     st.rerun()
-                except Exception as e:
-                    st.error("Error de red. Verifique su conexión o intente de nuevo.")
+                except:
+                    st.error("Error al enviar. Intente de nuevo.")
