@@ -72,18 +72,17 @@ if st.session_state.cedula and st.session_state.nombre:
         
         TIENDAS_PANADERIA = {
             'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540'},
-            'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'},
-            'BOGOTA': {'CARULLA CALLE 140': '549', 'ÉXITO COLINA': '4082'} # Ejemplo basado en CSV
+            'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}
         }
 
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
         
-        # --- NUEVA LÓGICA DE FILTRO DE PRODUCTOS ---
+        # --- LÓGICA DE FILTRO DE PRODUCTOS ACTUALIZADA ---
         opciones_producto = ["POLLOS", "PANADERIA"]
         if ciudad == "MANIZALES":
             opciones_producto = ["PANADERIA"]
-        elif ciudad == "MEDELLIN":
+        elif ciudad in ["MEDELLIN", "BOGOTA"]:
             opciones_producto = ["POLLOS"]
             
         with f2: producto = st.radio("📦 Producto:", opciones_producto, horizontal=True, key="s_prod")
@@ -105,8 +104,6 @@ if st.session_state.cedula and st.session_state.nombre:
                         with p1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
                         with p2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
                         if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
-                    else:
-                        st.warning("No hay datos de Panadería para esta ciudad.")
                 else: # POLLOS
                     dic = TIENDAS_POLLOS.get(ciudad, {})
                     if dic:
