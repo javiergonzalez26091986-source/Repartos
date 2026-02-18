@@ -40,7 +40,7 @@ def actualizar_url():
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR DÍA", type="primary"):
+    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -62,7 +62,7 @@ if st.session_state.cedula and st.session_state.nombre:
     # Lógica de Captura de Hora
     if not st.session_state.hora_ref or st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
+        if st.button("▶️ INICIAR ENTREGAS", use_container_width=True):
             st.session_state.hora_ref = datetime.now(col_tz).strftime("%H:%M")
             actualizar_url()
             st.rerun()
@@ -154,4 +154,5 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.success(f"Registro Procesado. Nueva hora base: {h_llegada}")
                 time.sleep(1.5)
                 st.rerun()
+
 
