@@ -7,7 +7,7 @@ import time
 
 # 1. Configuración de Zona Horaria y Página
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
+st.set_page_config(page_title="SERGEM APP", layout="wide")
 
 # --- BLOQUE DE SEGURIDAD ABSOLUTA PARA OCULTAR GITHUB Y MENÚ ---
 st.markdown("""
@@ -155,5 +155,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.success(f"Registro Procesado. Nueva hora base: {h_llegada}")
                 time.sleep(1.5)
                 st.rerun()
+
 
 
