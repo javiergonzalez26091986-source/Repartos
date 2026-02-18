@@ -19,12 +19,14 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
+# Recuperar datos de la URL al refrescar
 params = st.query_params
 if "ced" in params and 'cedula' not in st.session_state:
     st.session_state.cedula = params["ced"]
     st.session_state.nombre = params["nom"]
     st.session_state.hora_ref = params["hor"]
 
+# Inicializar estados si no existen
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
@@ -43,6 +45,7 @@ c1, c2 = st.columns(2)
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
 
+# Sincronizar inputs con la URL
 if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
     st.session_state.cedula = ced_input
     st.session_state.nombre = nom_input
@@ -50,6 +53,7 @@ if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
 
 if st.session_state.cedula and st.session_state.nombre:
     
+    # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
@@ -58,6 +62,7 @@ if st.session_state.cedula and st.session_state.nombre:
             actualizar_url()
             st.rerun()
     
+    # 2. FORMULARIO DE ENTREGAS
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_ref}")
         
@@ -79,46 +84,29 @@ if st.session_state.cedula and st.session_state.nombre:
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
         
-        # Filtro de Empresas
-        lista_empresas = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
-        if ciudad in ["CALI", "MANIZALES"]: 
-            lista_empresas.append("CAÑAVERAL")
-            
-        empresa = st.selectbox("🏢 Empresa:", lista_empresas, key="s_emp")
+        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL", "OTROS"], key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
-            # Lógica Cañaveral
             if empresa == "CAÑAVERAL":
-                col_c1, col_c2 = st.columns(2)
-                with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
-                with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
+                co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
+                cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
-            
-            # Lógica Éxito/Carulla
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
-                if producto == "PANADERÍA":
-                    dic = TIENDAS_PANADERIA.get(ciudad, {})
-                    if not dic:
-                        st.warning(f"No hay tiendas de Panadería en {ciudad}.")
-                    else:
-                        col_t1, col_t2 = st.columns(2)
-                        with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
-                        with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
-                        if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
-                else: # POLLOS
-                    dic = TIENDAS_POLLOS.get(ciudad, {})
-                    if not dic:
-                        st.warning(f"No hay tiendas de Pollos en {ciudad}.")
-                    else:
-                        t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
-                        if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
+                dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
+                t = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="ct")
+                if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
+            else:
+                ext = st.text_input("Nombre Externo:", key="ce").upper()
+                if ext: info = {"TO": "OTRO", "CO": "N/A", "TD": ext, "CD": "N/A"}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
+                
+                # Calcular minutos
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -132,17 +120,25 @@ if st.session_state.cedula and st.session_state.nombre:
                 }
                 
                 status_placeholder = st.empty()
-                status_placeholder.warning("Enviando...")
+                status_placeholder.warning("Enviando a base de datos...")
 
                 try:
+                    # Timeout de 20 segundos para evitar errores falsos
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    status_placeholder.success(f"¡Éxito! Nueva hora: {h_llegada}")
+                    status_placeholder.success(f"¡Registro Exitoso! Nueva hora de inicio: {h_llegada}")
+                except requests.exceptions.ReadTimeout:
+                    status_placeholder.info("Registro procesado (Confirmación lenta).")
                 except Exception:
-                    status_placeholder.info("Registro enviado (Confirmación lenta).")
+                    status_placeholder.error("Error de red. Intente de nuevo.")
+                    st.stop()
 
+                # Actualizar hora para el siguiente viaje
                 st.session_state.hora_ref = h_llegada
                 actualizar_url()
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
+                
+                # Limpiar campos de tienda
+                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ce', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
-                time.sleep(1.5)
+                
+                time.sleep(2)
                 st.rerun()
