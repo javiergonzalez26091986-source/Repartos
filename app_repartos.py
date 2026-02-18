@@ -35,7 +35,7 @@ if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
+    if st.button("🏁 FINALIZAR DÍA", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -56,7 +56,7 @@ if st.session_state.cedula and st.session_state.nombre:
     # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️ INICIAR ENTREGAS", use_container_width=True):
+        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
             h_act = datetime.now(col_tz).strftime("%H:%M")
             st.session_state.hora_ref = h_act
             actualizar_url()
@@ -84,7 +84,8 @@ if st.session_state.cedula and st.session_state.nombre:
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
         
-        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL", "OTROS"], key="s_emp")
+        # Eliminado "OTROS" de las opciones
+        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"], key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
@@ -96,9 +97,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
                 t = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="ct")
                 if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
-            else:
-                ext = st.text_input("Nombre Externo:", key="ce").upper()
-                if ext: info = {"TO": "OTRO", "CO": "N/A", "TD": ext, "CD": "N/A"}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -123,7 +121,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 status_placeholder.warning("Enviando a base de datos...")
 
                 try:
-                    # Timeout de 20 segundos para evitar errores falsos
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
                     status_placeholder.success(f"¡Registro Exitoso! Nueva hora de inicio: {h_llegada}")
                 except requests.exceptions.ReadTimeout:
@@ -137,10 +134,8 @@ if st.session_state.cedula and st.session_state.nombre:
                 actualizar_url()
                 
                 # Limpiar campos de tienda
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ce', 'ccant']:
+                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
                 
                 time.sleep(2)
                 st.rerun()
-
-
