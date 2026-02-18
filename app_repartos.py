@@ -11,78 +11,62 @@ col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
-PERSISTENCIA_INI = "hora_inicio_respaldo.txt"
-PERSISTENCIA_USER = "user_respaldo.txt" 
-DB_LOCAL = "registro_diario_respaldo.csv"
 
 # --- FUNCIONES DE CONTROL ---
-def guardar_memoria(hora):
-    with open(PERSISTENCIA_INI, "w") as f: 
-        f.write(hora)
-
-def leer_memoria():
-    if os.path.exists(PERSISTENCIA_INI):
-        with open(PERSISTENCIA_INI, "r") as f: 
-            return f.read().strip()
-    return ""
-
-def guardar_usuario(cedula, nombre):
-    with open(PERSISTENCIA_USER, "w") as f:
-        f.write(f"{cedula}|{nombre}")
-
-def leer_usuario():
-    if os.path.exists(PERSISTENCIA_USER):
-        with open(PERSISTENCIA_USER, "r") as f:
-            datos = f.read().split("|")
-            if len(datos) == 2: return datos[0], datos[1]
-    return "", ""
-
 def finalizar_operacion():
-    archivos = [PERSISTENCIA_INI, PERSISTENCIA_USER, DB_LOCAL]
-    for arc in archivos:
-        if os.path.exists(arc): os.remove(arc)
+    # Solo limpiamos la sesión actual del navegador
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    st.success("Operación finalizada. Limpiando datos...")
+    st.success("Operación finalizada. Limpiando datos de este celular...")
     time.sleep(1.5)
     st.rerun()
 
-# --- INICIALIZACIÓN DE ESTADO ---
+# --- INICIALIZACIÓN DE ESTADO PRIVADO ---
+# Usamos session_state que es ÚNICO por cada pestaña de navegador/celular
 if 'hora_referencia' not in st.session_state:
-    st.session_state['hora_referencia'] = leer_memoria()
+    st.session_state['hora_referencia'] = ""
 
-saved_ced, saved_nom = leer_usuario()
+if 'user_cedula' not in st.session_state:
+    st.session_state['user_cedula'] = ""
+
+if 'user_nombre' not in st.session_state:
+    st.session_state['user_nombre'] = ""
 
 # --- INTERFAZ ---
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR DÍA", type="primary"):
+    if st.button("🏁 FINALIZAR DÍA (Cerrar Sesión)", type="primary"):
         finalizar_operacion()
 
-c1, c2 = st.columns(2)
-cedula = c1.text_input("Cédula:", value=saved_ced, key="ced")
-nombre = c2.text_input("Nombre:", value=saved_nom, key="nom").upper()
+# Si no hay usuario en esta sesión, pedir datos
+if not st.session_state['user_cedula']:
+    st.subheader("👤 Identificación del Mensajero")
+    c1, c2 = st.columns(2)
+    ced = c1.text_input("Cédula:")
+    nom = c2.text_input("Nombre:").upper()
+    if st.button("INGRESAR"):
+        if ced and nom:
+            st.session_state['user_cedula'] = ced
+            st.session_state['user_nombre'] = nom
+            st.rerun()
+        else:
+            st.error("Por favor ingrese Cédula y Nombre")
+else:
+    # Ya hay usuario, mostrar quién es
+    st.write(f"👤 **Mensajero:** {st.session_state['user_nombre']} ({st.session_state['user_cedula']})")
+    
+    cedula = st.session_state['user_cedula']
+    nombre = st.session_state['user_nombre']
 
-if cedula and nombre and (cedula != saved_ced or nombre != saved_nom):
-    guardar_usuario(cedula, nombre)
-
-if cedula and nombre:
-    # SI NO HAY HORA REGISTRADA (INICIO DE JORNADA)
+    # LÓGICA DE TIEMPOS
     if st.session_state['hora_referencia'] == "":
         st.subheader("🚀 Inicio de Jornada")
-        st.warning("Presione el botón en el momento exacto de salir de la base.")
-        
-        # EL CAMBIO: Botón que captura hora real
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
             hora_real = datetime.now(col_tz).strftime("%H:%M")
             st.session_state['hora_referencia'] = hora_real
-            guardar_memoria(hora_real)
-            st.success(f"Hora de salida registrada: {hora_real}")
-            time.sleep(1)
             st.rerun()
     
-    # JORNADA EN CURSO
     else:
         st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state['hora_referencia']}")
         
@@ -153,27 +137,17 @@ if cedula and nombre:
                     "Cant": int(cant), "Inicio": st.session_state['hora_referencia'], "Llegada": h_llegada, "Minutos": minutos
                 }
                 
-                pd.DataFrame([payload]).to_csv(DB_LOCAL, mode='a', index=False, header=not os.path.exists(DB_LOCAL))
-                
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    st.success("¡Enviado y tiempos actualizados!")
+                    st.success("¡Enviado!")
                 except:
-                    st.warning("Guardado local (Sin conexión).")
+                    st.error("Error de conexión al enviar.")
                 
                 st.session_state['hora_referencia'] = h_llegada
-                guardar_memoria(h_llegada)
                 
+                # Limpiar campos de la entrega actual
                 for k in ['sel_ciu', 'sel_emp', 'c_o', 'c_d', 'p_o_v', 'p_d_v', 'pol_gen', 'cant_val', 'txt_ext']:
                     if k in st.session_state: del st.session_state[k]
                 
                 time.sleep(1)
                 st.rerun()
-
-if os.path.exists(DB_LOCAL):
-    st.markdown("---")
-    st.subheader("📋 Últimos registros de hoy")
-    try:
-        df_rev = pd.read_csv(DB_LOCAL)
-        st.dataframe(df_rev.tail(5), use_container_width=True)
-    except: pass
