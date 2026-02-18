@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pdimport streamlit as st
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -186,10 +185,8 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.rerun()
         with col_c2:
             if st.button("🚨 SÍ, SALIR Y REINICIAR", use_container_width=True, type="primary"):
-                # 1. Limpiar memoria local y de sesión
                 st_javascript("localStorage.clear();")
                 st.query_params.clear()
                 st.session_state.clear()
-                # 2. Redirigir a una página externa para "cerrar" la App visualmente
                 st_javascript("window.location.href = 'https://www.google.com';")
                 st.stop()
