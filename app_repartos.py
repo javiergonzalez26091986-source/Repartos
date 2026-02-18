@@ -4,136 +4,125 @@ from datetime import datetime
 import pytz
 import requests
 import time
-from streamlit_javascript import st_javascript
 
-# 1. Configuración de Zona Horaria y Página
+# 1. Configuración de Zona Horaria
 col_tz = pytz.timezone('America/Bogota')
-st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
+st.set_page_config(page_title="Control SERGEM", layout="wide")
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- FUNCIONES DE MEMORIA EN EL NAVEGADOR (Local Storage) ---
-def set_local(key, value):
-    st_javascript(f"localStorage.setItem('{key}', '{value}');")
+# --- LÓGICA DE PERSISTENCIA POR URL (Inmune a refrescos) ---
+def actualizar_url():
+    st.query_params.update({
+        "ced": st.session_state.cedula,
+        "nom": st.session_state.nombre,
+        "hor": st.session_state.hora_ref
+    })
 
-def get_local(key):
-    return st_javascript(f"localStorage.getItem('{key}');")
+# Recuperar datos de la URL si existen (esto ocurre al refrescar)
+params = st.query_params
+if "ced" in params and 'cedula' not in st.session_state:
+    st.session_state.cedula = params["ced"]
+    st.session_state.nombre = params["nom"]
+    st.session_state.hora_ref = params["hor"]
 
-def clear_local():
-    st_javascript("localStorage.clear();")
+# Inicializar sesión si está vacío
+if 'cedula' not in st.session_state: st.session_state.cedula = ""
+if 'nombre' not in st.session_state: st.session_state.nombre = ""
+if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 
-# --- INICIALIZACIÓN DE ESTADO ---
-# Intentamos recuperar de la memoria del celular si se refresca la página
-if 'cedula' not in st.session_state:
-    st.session_state.cedula = ""
-if 'nombre' not in st.session_state:
-    st.session_state.nombre = ""
-if 'hora_referencia' not in st.session_state:
-    st.session_state.hora_referencia = ""
-
-# --- RECUPERACIÓN AUTOMÁTICA AL REFRESCAR ---
-# Esta parte lee lo que el celular guardó antes de refrescar
-local_ced = get_local("sergem_ced")
-local_nom = get_local("sergem_nom")
-local_hora = get_local("sergem_hora")
-
-if local_ced and not st.session_state.cedula:
-    st.session_state.cedula = local_ced
-    st.session_state.nombre = local_nom
-    st.session_state.hora_referencia = local_hora if local_hora != "None" else ""
-
-# --- INTERFAZ (Estética Original) ---
+# --- INTERFAZ ---
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
     if st.button("🏁 FINALIZAR DÍA", type="primary"):
-        clear_local()
+        st.query_params.clear()
         st.session_state.clear()
         st.rerun()
 
+# --- BLOQUE DE IDENTIFICACIÓN ---
 c1, c2 = st.columns(2)
-# Los campos donde se digita la cédula y nombre
-cedula = c1.text_input("Cédula:", value=st.session_state.cedula)
-nombre = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
+ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
+nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
 
-# Si se digitan datos nuevos, guardarlos en la memoria del celular inmediatamente
-if cedula != st.session_state.cedula or nombre != st.session_state.nombre:
-    st.session_state.cedula = cedula
-    st.session_state.nombre = nombre
-    set_local("sergem_ced", cedula)
-    set_local("sergem_nom", nombre)
+# Si el usuario escribe, guardamos en URL para que no se pierda
+if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
+    st.session_state.cedula = ced_input
+    st.session_state.nombre = nom_input
+    actualizar_url()
 
 if st.session_state.cedula and st.session_state.nombre:
-    # Lógica del Botón de Inicio
-    if st.session_state.hora_referencia == "":
+    
+    # 1. CAPTURA DE HORA INICIAL
+    if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
         if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
-            hora_str = datetime.now(col_tz).strftime("%H:%M")
-            st.session_state.hora_referencia = hora_str
-            set_local("sergem_hora", hora_str)
+            h_act = datetime.now(col_tz).strftime("%H:%M")
+            st.session_state.hora_ref = h_act
+            actualizar_url()
             st.rerun()
     
+    # 2. FORMULARIO DE ENTREGAS
     else:
-        st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_referencia}")
+        st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS (Misma estructura) ---
+        # BASES DE DATOS
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         TIENDAS_PANADERIA = {'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540'}, 'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}}
         TIENDAS_POLLOS = {'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'}}
 
         f1, f2 = st.columns(2)
-        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="sel_ciu")
-        with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="rad_prod")
+        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
+        with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
         
-        opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "OTROS"]
-        if ciudad in ["CALI", "MANIZALES"]: opciones_empresa.insert(2, "CAÑAVERAL")
-        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="sel_emp")
+        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL", "OTROS"], key="s_emp")
 
-        # Lógica de asignación de tiendas (simplificada para asegurar funcionamiento)
         info = None
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
-                c_o = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="c_o")
-                c_d = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="c_d")
-                if c_o != "--" and c_d != "--": info = {"TO": c_o, "CO": "CAN", "TD": c_d, "CD": "CAN"}
+                o = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
+                d = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
+                if o != "--" and d != "--": info = {"TO": o, "CO": "CAN", "TD": d, "CD": "CAN"}
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
-                t_sel = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="t_sel")
-                if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
+                t = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="ct")
+                if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
             else:
-                ext = st.text_input("Nombre Externo:", key="txt_ext").upper()
+                ext = st.text_input("Nombre Externo:", key="ce").upper()
                 if ext: info = {"TO": "OTRO", "CO": "N/A", "TD": ext, "CD": "N/A"}
 
         if info:
-            cant = st.number_input("Cantidad:", min_value=1, step=1, key="cant_val")
+            cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Cálculo de minutos
-                t_ini = datetime.strptime(st.session_state.hora_referencia, "%H:%M")
+                # Calcular minutos desde la hora_ref actual
+                t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
                 if minutos < 0: minutos += 1440
 
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": cedula, "Mensajero": nombre,
+                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre,
                     "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
                     "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
-                    "Cant": int(cant), "Inicio": st.session_state.hora_referencia, "Llegada": h_llegada, "Minutos": minutos
+                    "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
                 }
                 
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=10)
-                    st.success("¡Enviado!")
-                    # Actualizar hora para siguiente viaje y guardar en memoria del celular
-                    st.session_state.hora_referencia = h_llegada
-                    set_local("sergem_hora", h_llegada)
+                    st.success(f"¡Registro enviado! Nueva hora de inicio: {h_llegada}")
                     
-                    # Limpiar selectores
-                    for k in ['sel_ciu', 'sel_emp', 'c_o', 'c_d', 't_sel', 'txt_ext', 'cant_val']:
+                    # AQUÍ ESTÁ EL TRUCO: Actualizamos la hora de referencia con la de llegada
+                    st.session_state.hora_ref = h_llegada
+                    actualizar_url() # Guardamos en la URL para el próximo viaje
+                    
+                    # Limpiar selectores de tienda pero NO la cédula/hora
+                    for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ce', 'ccant']:
                         if k in st.session_state: del st.session_state[k]
-                    time.sleep(1)
+                    
+                    time.sleep(1.5)
                     st.rerun()
                 except:
-                    st.error("Error de conexión al Drive")
+                    st.error("Error al enviar. Verifique su conexión.")
