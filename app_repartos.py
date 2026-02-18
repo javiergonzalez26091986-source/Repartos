@@ -144,5 +144,3 @@ if st.session_state.cedula and st.session_state.nombre:
                     
                     time.sleep(1.5)
                     st.rerun()
-                except:
-                    st.error("Error al enviar. Intente de nuevo.")
