@@ -19,6 +19,7 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
+# Inicializar estados
 if 'cedula' not in st.session_state: st.session_state.cedula = st.query_params.get("ced", "")
 if 'nombre' not in st.session_state: st.session_state.nombre = st.query_params.get("nom", "")
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = st.query_params.get("hor", "")
@@ -32,6 +33,7 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
+# --- BLOQUE DE IDENTIFICACIÓN ---
 c1, c2 = st.columns(2)
 ced_input = c1.text_input("Cédula:", value=st.session_state.cedula)
 nom_input = c2.text_input("Nombre:", value=st.session_state.nombre).upper()
@@ -50,9 +52,9 @@ if st.session_state.cedula and st.session_state.nombre:
             actualizar_url()
             st.rerun()
     else:
-        st.info(f"✅ **Hora de Inicio para esta entrega:** {st.session_state.hora_ref}")
+        st.info(f"✅ **Hora de Inicio:** {st.session_state.hora_ref}")
         
-        # --- BASES DE DATOS DEL CSV ---
+        # --- BASES DE DATOS (Fieles a tu CSV) ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_POLLOS = {
@@ -100,35 +102,34 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # --- LÓGICA DE CÁLCULO DE MINUTOS ---
+                # --- CÁLCULO DE TIEMPO ---
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
-                if minutos < 0: minutos += 1440 # Corrección si pasa de medianoche
+                if minutos < 0: minutos += 1440
 
                 payload = {
-                    "Fecha": ahora.strftime("%d/%m/%Y"), 
-                    "Cedula": st.session_state.cedula, 
-                    "Mensajero": st.session_state.nombre,
-                    "Empresa": empresa, 
-                    "Ciudad": ciudad, 
-                    "Producto": producto,
-                    "Tienda_O": info["TO"], 
-                    "Cod_O": info["CO"], 
-                    "Cod_D": info["CD"], 
-                    "Tienda_D": info["TD"],
-                    "Cant": int(cant), 
-                    "Inicio": st.session_state.hora_ref, 
-                    "Llegada": h_llegada,
-                    "Minutos": minutos
+                    "Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre,
+                    "Empresa": empresa, "Ciudad": ciudad, "Producto": producto,
+                    "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"],
+                    "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
                 }
                 
+                # ENVÍO CON MANEJO DE ERRORES MEJORADO
                 try:
-                    requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                    st.success(f"¡Éxito! Tiempo total: {minutos} min. Nueva hora: {h_llegada}")
+                    response = requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
+                    st.success(f"¡Registro Exitoso! Tiempo: {minutos} min.")
+                    
+                    # ACTUALIZACIÓN Y LIMPIEZA DE CAMPOS
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
+                    
+                    # Limpiar selectores para la siguiente entrega
+                    for key in ['s_ciu', 's_emp', 'co', 'cd', 'to', 'td', 'ct', 'ccant']:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
                     time.sleep(1.5)
                     st.rerun()
-                except:
-                    st.error("Error al enviar. Intente nuevamente.")
+                except Exception as e:
+                    st.error("Error de red. Verifique su conexión o intente de nuevo.")
