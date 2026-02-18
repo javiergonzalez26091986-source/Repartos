@@ -21,11 +21,27 @@ st.markdown("""
     div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     div[data-testid="stDecoration"] { display: none !important; }
     
-    /* Botón ENVIAR REGISTRO en Verde */
+    /* ESTILO DE BOTONES POR POSICIÓN Y TIPO */
+    
+    /* 1. Botón ENVIAR REGISTRO (Primer botón primario que encuentra) -> VERDE */
     div.stButton > button:first-child[kind="primary"] {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
         color: white !important;
+    }
+
+    /* 2. Botón FINALIZAR DÍA (Último botón de la página) -> ROJO */
+    /* Usamos un selector para el botón de "SÍ, SALIR" y el de "FINALIZAR" principal */
+    div[data-testid="stVerticalBlock"] > div:last-child div.stButton > button[kind="primary"] {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    /* Ajuste para que los botones rojos se vean rojos incluso al pasar el mouse */
+    div[data-testid="stVerticalBlock"] > div:last-child div.stButton > button[kind="primary"]:hover {
+        background-color: #bd2130 !important;
+        border-color: #b21f2d !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -93,6 +109,7 @@ if st.session_state.cedula and st.session_state.nombre:
     else:
         st.success(f"✅ **Mensajero:** {st.session_state.nombre} | **Hora Base:** {st.session_state.hora_ref}")
         
+        # --- BASES DE DATOS ---
         LISTA_CANAVERAL = ['20 DE JULIO', 'BRISAS DE LOS ALAMOS', 'BUGA', 'CAVASA (VIA CANDELARIA)', 'CENTENARIO (AV 4N)', 'COOTRAEMCALI', 'DOSQUEBRADAS (PEREIRA)', 'EL INGENIO', 'EL LIMONAR (CRA 70)', 'GUADALUPE (CALI)', 'JAMUNDÍ (COUNTRY MALL)', 'LOS PINOS', 'PALMIRA', 'PANCE', 'PASOANCHO (CALI)', 'PRADOS DEL NORTE (LA 34)', 'ROLDANILLO', 'SANTA HELENA', 'TULUA', 'VILLAGORGONA', 'VILLANUEVA']
         
         TIENDAS_POLLOS = {
@@ -167,7 +184,7 @@ if st.session_state.cedula and st.session_state.nombre:
                 time.sleep(1.5)
                 st.rerun()
 
-    # --- SECCIÓN FINALIZAR DÍA CON SALIDA REAL ---
+    # --- SECCIÓN FINALIZAR DÍA (ROJO) ---
     st.write("---")
     if "confirmar_cierre" not in st.session_state:
         st.session_state.confirmar_cierre = False
@@ -177,14 +194,14 @@ if st.session_state.cedula and st.session_state.nombre:
             st.session_state.confirmar_cierre = True
             st.rerun()
     else:
-        st.warning("⚠️ **ATENCIÓN:** Esto reiniciará todo y saldrá de la App. ¿Desea continuar?")
+        st.error("⚠️ **¿ESTÁ SEGURO?** Esto cerrará su sesión actual.")
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             if st.button("❌ VOLVER", use_container_width=True):
                 st.session_state.confirmar_cierre = False
                 st.rerun()
         with col_c2:
-            if st.button("🚨 SÍ, SALIR Y REINICIAR", use_container_width=True, type="primary"):
+            if st.button("🚨 SÍ, SALIR", use_container_width=True, type="primary"):
                 st_javascript("localStorage.clear();")
                 st.query_params.clear()
                 st.session_state.clear()
