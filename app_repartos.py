@@ -58,7 +58,7 @@ with head_l:
     st.title("🛵 Control de entregas SERGEM")
 with head_r:
     st.write("##") 
-    if st.button("🏁 FINALIZAR DÍA", type="primary", use_container_width=True):
+    if st.button("🏁 FINALIZAR ENTREGAS", type="primary", use_container_width=True):
         st.session_state.confirmar_cierre = True
 
 # --- LÓGICA DE PREGUNTA / CONFIRMACIÓN ---
@@ -86,7 +86,7 @@ if ced_input != st.session_state.cedula or nom_input != st.session_state.nombre:
 if st.session_state.cedula and st.session_state.nombre:
     if not st.session_state.hora_ref or st.session_state.hora_ref in ["", "None"]:
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
+        if st.button("▶️ INICIAR ENTREGAS", use_container_width=True):
             st.session_state.hora_ref = datetime.now(col_tz).strftime("%H:%M")
             actualizar_url()
             st.rerun()
@@ -145,3 +145,4 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.success(f"Enviado. Nueva hora base: {h_llegada}")
                 time.sleep(1.5)
                 st.rerun()
+
