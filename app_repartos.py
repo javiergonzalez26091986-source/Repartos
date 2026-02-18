@@ -35,7 +35,7 @@ if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
+    if st.button("🏁 FINALIZAR DÍA", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -56,7 +56,7 @@ if st.session_state.cedula and st.session_state.nombre:
     # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️INICIAR ENTREGAS", use_container_width=True):
+        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
             h_act = datetime.now(col_tz).strftime("%H:%M")
             st.session_state.hora_ref = h_act
             actualizar_url()
@@ -93,16 +93,19 @@ if st.session_state.cedula and st.session_state.nombre:
                 with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
                 with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
+            
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
-                dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
-                if not dic:
-                    st.warning(f"No hay tiendas de {producto} registradas para {ciudad}.")
-                else:
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
-                    with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
-                    if t_o != "--" and t_d != "--": 
-                        info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
+                if producto == "PANADERÍA":
+                    dic = TIENDAS_PANADERIA.get(ciudad, {})
+                    if dic:
+                        col_t1, col_t2 = st.columns(2)
+                        with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
+                        with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                        if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
+                else: # POLLOS
+                    dic = TIENDAS_POLLOS.get(ciudad, {})
+                    t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
+                    if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -127,21 +130,19 @@ if st.session_state.cedula and st.session_state.nombre:
 
                 try:
                     requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=20)
-                    status_placeholder.success(f"¡Registro Exitoso! Nueva hora de inicio: {h_llegada}")
+                    status_placeholder.success(f"¡Registro Exitoso! Nueva hora: {h_llegada}")
                 except requests.exceptions.ReadTimeout:
                     status_placeholder.info("Registro procesado (Confirmación lenta).")
                 except Exception:
                     status_placeholder.error("Error de red. Intente de nuevo.")
                     st.stop()
 
-                # Actualizar hora para el siguiente viaje
                 st.session_state.hora_ref = h_llegada
                 actualizar_url()
                 
-                # Limpiar campos de selección pero mantener sesión
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'to', 'td', 'ccant']:
+                # Limpieza de selectores
+                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
                 
-                time.sleep(2)
+                time.sleep(1.5)
                 st.rerun()
-
