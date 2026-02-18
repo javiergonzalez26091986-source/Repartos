@@ -70,47 +70,49 @@ if st.session_state.cedula and st.session_state.nombre:
         }
         
         TIENDAS_POLLOS = {
-            'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'}
+            'CALI': {'SUPER INTER POPULAR': '4210', 'SUPER INTER GUAYACANES': '4206', 'SUPER INTER UNICO SALOMIA': '4218', 'SUPER INTER VILLA COLOMBIA': '4215', 'SUPER INTER EL SEMBRADOR': '4216', 'SUPER INTER SILOE': '4223', 'SUPER INTER SAN FERNANDO': '4232', 'SUPER INTER BUENOS AIRES': '4262', 'SUPER INTER VALDEMORO': '4233', 'CARULLA LA MARIA': '4781', 'SUPER INTER EXPRESS AV. SEXTA': '4212', 'SUPER INTER PASARELA': '4214', 'SUPER INTER PRIMAVERA': '4271', 'SUPER INTER INDEPENDENCIA': '4261', 'CARULLA PASOANCHO': '4799', 'ÉXITO CRA OCTAVA (L)': '650'},
+            'MEDELLÍN': {'ÉXITO EXPRESS CIUDAD DEL RIO': '197', 'CARULLA SAO PAULO': '341', 'CARULLA EXPRESS VILLA GRANDE': '452', 'SURTIMAX CENTRO DE LA MODA': '516', 'SURTIMAX TRIANON': '745', 'SURTIMAX SAN JAVIER METRO': '758', 'ÉXITO INDIANA MALL': '4042', 'ÉXITO SAN JAVIER': '4067', 'ÉXITO GARDEL': '4070', 'SURTIMAX CAMINO VERDE': '4381', 'SURTIMAX CALDAS': '4534', 'SURTIMAX PILARICA': '4557', 'CARULLA EXPRESS PADRE MARIANITO': '4664', 'CARULLA EXPRESS EDS LA SIERRA': '4665', 'CARULLA EXPRESS PARQUE POBLADO': '4669', 'CARULLA EXPRESS LA AMÉRICA': '4776', 'CARULLA EXPRESS NUTIBARA': '4777', 'CARULLA EXPRESS LAURELES': '4778', 'CARULLA EXPRESS DIVINA EUCARISTIA': '4829', 'CARULLA EXPRESS LOMA ESCOBERO': '4878'},
+            'BOGOTÁ': {'ÉXITO EXPRESS EMBAJADA': '110', 'ÉXITO EXPRESS COLSEGUROS (CAF)': '301', 'SURTIMAX BRASIL BOSA': '311', 'SURTIMAX CASA BLANCA (CAF)': '434', 'SURTIMAX LA ESPAÑOLA': '449', 'SURTIMAX SAN ANTONIO': '450', 'ÉXITO EXPRESS BIMA': '459', 'SURTIMAX BARRANCAS': '467', 'CARULLA EXPRESS CEDRITOS': '468', 'SURTIMAX NUEVA ROMA': '470', 'SURTIMAX TIBABUYES': '473', 'SURTIMAX TRINITARIA': '474', 'SURTIMAX LA GLORIA': '481', 'SURTIMAX SAN FERNANDO': '511', 'CARULLA CALLE 147': '549', 'ÉXITO PLAZA BOLIVAR': '558', 'SURTIMAX TOCANCIPÁ': '573', 'SURTIMAX SAN MATEO': '575', 'SURTIMAX CAJICÁ': '576', 'SURTIMAX SOPÓ': '577', 'SURTIMAX COMPARTIR SOACHA': '579', 'SURTIMAX SANTA RITA': '623', 'ÉXITO EXPRESS CRA 15 CON 100': '657', 'SURTIMAX LA CALERA': '703', 'SURTIMAX YANGUAS': '709', 'SURTIMAX EL SOCORRO': '768', 'SURTIMAX EL RECREO BOSA': '781', 'CARULLA LA CALERA': '886', 'ÉXITO PRIMAVERA CALLE 80': '4068', 'ÉXITO PARQUE FONTIBON': '4069', 'ÉXITO PRADILLA': '4071', 'ÉXITO CIUDADEL': '4082', 'ÉXITO EXPRESS CRA 24 83-22': '4187', 'SURTIMAX CHAPINERO': '4523', 'SURTIMAX LIJACA': '4524', 'SURTIMAX QUIROGA': '4527', 'SURTIMAX SUBA BILBAO': '4533', 'SURTIMAX SANTA ISABEL': '4539', 'CARULLA BACATA': '4813', 'CARULLA SMARTMARKET': '4814', 'CARULLA LA PRADERA DE POTOSÍ': '4818', 'CARULLA EXPRESS C109 C14': '4822', 'CARULLA EXPRESS SIBERIA': '4825', 'CARULLA EXPRESS CALLE 90': '4828', 'CARULLA EXPRESS PONTEVEDRA': '4836', 'CARULLA EXPRESS CARRERA 7': '4839', 'CARULLA EXPRESS SALITRE': '4875', 'CARULLA EXPRESS CORFERIAS': '4876'}
         }
 
         f1, f2 = st.columns(2)
+        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
         
-        # Filtro de Ciudades: Pollos solo Cali / Panadería Cali y Manizales
-        ciudades_disponibles = ["--", "CALI"]
-        if producto == "PANADERÍA": 
-            ciudades_disponibles.append("MANIZALES")
-        
-        with f1: ciudad = st.selectbox("📍 Ciudad:", ciudades_disponibles, key="s_ciu")
-        
-        # Filtro de Empresas: Cañaveral disponible para Cali y Manizales
-        empresas_disponibles = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
-        if ciudad in ["CALI", "MANIZALES"]:
-            empresas_disponibles.append("CAÑAVERAL")
+        # Filtro de Empresas
+        lista_empresas = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
+        if ciudad in ["CALI", "MANIZALES"]: 
+            lista_empresas.append("CAÑAVERAL")
             
-        empresa = st.selectbox("🏢 Empresa:", empresas_disponibles, key="s_emp")
+        empresa = st.selectbox("🏢 Empresa:", lista_empresas, key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
-            # Lógica Cañaveral (Origen y Destino)
+            # Lógica Cañaveral
             if empresa == "CAÑAVERAL":
                 col_c1, col_c2 = st.columns(2)
                 with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
                 with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
             
-            # Lógica Exito/Carulla (Diferencia entre Pollos y Panadería)
+            # Lógica Éxito/Carulla
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 if producto == "PANADERÍA":
                     dic = TIENDAS_PANADERIA.get(ciudad, {})
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
-                    with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
-                    if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
-                else: # POLLOS (Solo Cali)
+                    if not dic:
+                        st.warning(f"No hay tiendas de Panadería en {ciudad}.")
+                    else:
+                        col_t1, col_t2 = st.columns(2)
+                        with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
+                        with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                        if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
+                else: # POLLOS
                     dic = TIENDAS_POLLOS.get(ciudad, {})
-                    t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
-                    if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
+                    if not dic:
+                        st.warning(f"No hay tiendas de Pollos en {ciudad}.")
+                    else:
+                        t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
+                        if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
