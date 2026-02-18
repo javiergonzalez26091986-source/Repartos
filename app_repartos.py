@@ -35,7 +35,7 @@ if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
+    if st.button("🏁 FINALIZAR DÍA", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -56,7 +56,7 @@ if st.session_state.cedula and st.session_state.nombre:
     # 1. CAPTURA DE HORA INICIAL
     if st.session_state.hora_ref == "" or st.session_state.hora_ref == "None":
         st.subheader("🚀 Iniciar Jornada")
-        if st.button("▶️ INICIAR ENTREGAS", use_container_width=True):
+        if st.button("▶️ CAPTURAR HORA DE SALIDA", use_container_width=True):
             h_act = datetime.now(col_tz).strftime("%H:%M")
             st.session_state.hora_ref = h_act
             actualizar_url()
@@ -84,19 +84,25 @@ if st.session_state.cedula and st.session_state.nombre:
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLÍN", "BOGOTÁ"], key="s_ciu")
         with f2: producto = st.radio("📦 Producto:", ["POLLOS", "PANADERÍA"], horizontal=True, key="s_prod")
         
-        # Eliminado "OTROS" de las opciones
         empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"], key="s_emp")
 
         info = None
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
-                co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
-                cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
+                col_c1, col_c2 = st.columns(2)
+                with col_c1: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
+                with col_c2: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
             elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
                 dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERÍA" else TIENDAS_POLLOS.get(ciudad, {})
-                t = st.selectbox("🏪 Tienda:", ["--"] + sorted(list(dic.keys())), key="ct")
-                if t != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t, "CD": dic[t]}
+                if not dic:
+                    st.warning(f"No hay tiendas de {producto} registradas para {ciudad}.")
+                else:
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
+                    with col_t2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                    if t_o != "--" and t_d != "--": 
+                        info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
 
         if info:
             cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -104,7 +110,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 ahora = datetime.now(col_tz)
                 h_llegada = ahora.strftime("%H:%M")
                 
-                # Calcular minutos
                 t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                 t_fin = datetime.strptime(h_llegada, "%H:%M")
                 minutos = int((t_fin - t_ini).total_seconds() / 60)
@@ -133,10 +138,9 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.session_state.hora_ref = h_llegada
                 actualizar_url()
                 
-                # Limpiar campos de tienda
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'ccant']:
+                # Limpiar campos de selección pero mantener sesión
+                for k in ['s_ciu', 's_emp', 'co', 'cd', 'to', 'td', 'ccant']:
                     if k in st.session_state: del st.session_state[k]
                 
                 time.sleep(2)
                 st.rerun()
-
