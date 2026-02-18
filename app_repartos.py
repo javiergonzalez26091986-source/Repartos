@@ -9,6 +9,19 @@ import time
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
+# --- BLOQUE DE SEGURIDAD ABSOLUTA PARA OCULTAR GITHUB Y MENÚ ---
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .st-emotion-cache-17z6f92 {visibility: hidden;}
+    .stAppDeployButton {display:none;}
+    div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
+    div[data-testid="stDecoration"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
 # --- BLOQUE DE PERSISTENCIA (URL A SESSION STATE) ---
@@ -142,3 +155,4 @@ if st.session_state.cedula and st.session_state.nombre:
                 st.success(f"Registro Procesado. Nueva hora base: {h_llegada}")
                 time.sleep(1.5)
                 st.rerun()
+
