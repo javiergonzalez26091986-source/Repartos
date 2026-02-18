@@ -9,16 +9,14 @@ import time
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
-# --- BLOQUE DE SEGURIDAD Y ESTILOS (Botones Verde y Rojo) ---
+# --- ESTILOS CSS (Colores Verde y Rojo) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .st-emotion-cache-17z6f92 {visibility: hidden;}
     .stAppDeployButton {display:none;}
-    div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
-    div[data-testid="stDecoration"] { display: none !important; }
+    div[data-testid="stToolbar"] { visibility: hidden !important; }
     
     /* Botón ENVIAR REGISTRO -> VERDE */
     div.stButton > button:first-child[kind="primary"] {
@@ -54,13 +52,23 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
-# --- CABECERA: TÍTULO Y BOTÓN FINALIZAR (TOP DERECHA) ---
+# --- CABECERA: TÍTULO Y BOTÓN FINALIZAR ---
 head_l, head_r = st.columns([3, 1])
 with head_l:
     st.title("🛵 Control de entregas SERGEM")
 with head_r:
-    st.write("##") # Alineación
+    st.write("##") 
     if st.button("🏁 FINALIZAR DÍA", type="primary", use_container_width=True):
+        st.session_state.confirmar_cierre = True
+
+# --- LÓGICA DE PREGUNTA / CONFIRMACIÓN ---
+if st.session_state.get('confirmar_cierre'):
+    st.error("⚠️ **¿ESTÁ SEGURO DE FINALIZAR EL DÍA?**")
+    cc1, cc2 = st.columns(2)
+    if cc1.button("❌ NO, VOLVER", use_container_width=True):
+        st.session_state.confirmar_cierre = False
+        st.rerun()
+    if cc2.button("🚨 SÍ, CERRAR", use_container_width=True, type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -106,19 +114,16 @@ if st.session_state.cedula and st.session_state.nombre:
                 with c1c: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
                 with c2c: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
-            elif empresa == "EXITO-CARULLA-SURTIMAX-SUPERINTER":
+            else:
+                dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERIA" else TIENDAS_POLLOS.get(ciudad, {})
                 if producto == "PANADERIA":
-                    dic = TIENDAS_PANADERIA.get(ciudad, {})
-                    if dic:
-                        p1, p2 = st.columns(2)
-                        with p1: t_o = st.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
-                        with p2: t_d = st.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
-                        if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
+                    p1, p2 = st.columns(2)
+                    t_o = p1.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
+                    t_d = p2.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                    if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
                 else:
-                    dic = TIENDAS_POLLOS.get(ciudad, {})
-                    if dic:
-                        t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
-                        if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
+                    t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
+                    if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
         # EL BOTÓN SOLO APARECE SI INFO NO ES NONE
         if info:
