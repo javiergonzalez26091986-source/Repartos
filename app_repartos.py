@@ -35,7 +35,7 @@ if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 st.title("🛵 Control de entregas SERGEM")
 
 with st.sidebar:
-    if st.button("🏁 FINALIZAR DÍA", type="primary"):
+    if st.button("🏁 FINALIZAR ENTREGAS", type="primary"):
         st.query_params.clear()
         st.session_state.clear()
         st.rerun()
@@ -142,4 +142,5 @@ if st.session_state.cedula and st.session_state.nombre:
                 
                 time.sleep(2)
                 st.rerun()
+
 
