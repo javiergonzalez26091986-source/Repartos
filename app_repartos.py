@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import pd as pd
 from datetime import datetime
 import pytz
 import requests
@@ -9,7 +9,7 @@ import time
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
-# --- ESTILOS CSS (Colores Verde y Rojo) ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -18,13 +18,11 @@ st.markdown("""
     .stAppDeployButton {display:none;}
     div[data-testid="stToolbar"] { visibility: hidden !important; }
     
-    /* Botón ENVIAR REGISTRO -> VERDE */
     div.stButton > button:first-child[kind="primary"] {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
         color: white !important;
     }
-    /* Botón FINALIZAR (Arriba) -> ROJO */
     .stColumn div.stButton > button[kind="primary"] {
         background-color: #dc3545 !important;
         border-color: #dc3545 !important;
@@ -44,7 +42,6 @@ if "hor" in params: st.session_state.hora_ref = params["hor"]
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
-# Persistencia del historial para la tabla
 if 'historial_datos' not in st.session_state: st.session_state.historial_datos = []
 
 def actualizar_url():
@@ -54,7 +51,7 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
-# --- CABECERA: TÍTULO Y BOTÓN FINALIZAR ---
+# --- CABECERA ---
 head_l, head_r = st.columns([3, 1])
 with head_l:
     st.title("🛵 Control de entregas SERGEM")
@@ -63,7 +60,6 @@ with head_r:
     if st.button("🏁 FINALIZAR ENTREGAS", type="primary", use_container_width=True):
         st.session_state.confirmar_cierre = True
 
-# --- LÓGICA DE PREGUNTA / CONFIRMACIÓN ---
 if st.session_state.get('confirmar_cierre'):
     st.error("⚠️ **¿ESTÁ SEGURO DE FINALIZAR EL DÍA?**")
     cc1, cc2 = st.columns(2)
@@ -107,7 +103,9 @@ if st.session_state.cedula and st.session_state.nombre:
             ops_prod = ["PANADERIA"] if ciudad == "MANIZALES" else (["POLLOS"] if ciudad in ["MEDELLIN", "BOGOTA"] else ["POLLOS", "PANADERIA"])
             producto = st.radio("📦 Producto:", ops_prod, horizontal=True, key="s_prod")
         
-        empresa = st.selectbox("🏢 Empresa:", ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"] if ciudad == "CALI" else ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"], key="s_emp")
+        # AJUSTE: index=0 asegura que vuelva a "--" cuando se limpie la llave 's_emp'
+        opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"] if ciudad == "CALI" else ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
+        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="s_emp", index=0)
 
         info = None
         if ciudad != "--" and empresa != "--":
@@ -132,7 +130,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 col_e, col_m = st.columns(2)
                 ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0)
                 med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0)
-                # Lógica de unificación decimal (10 enteros + 5 medios = 12.5)
                 cant_final = float(ent) + (float(med) * 0.5)
             else:
                 cant_final = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -150,31 +147,15 @@ if st.session_state.cedula and st.session_state.nombre:
                     if minutos < 0: minutos += 1440
                     
                     payload = {
-                        "Fecha": fecha_str, 
-                        "Cedula": st.session_state.cedula, 
-                        "Mensajero": st.session_state.nombre, 
-                        "Empresa": empresa, 
-                        "Ciudad": ciudad, 
-                        "Producto": producto, 
-                        "Tienda_O": info["TO"], 
-                        "Cod_O": info["CO"], 
-                        "Cod_D": info["CD"], 
-                        "Tienda_D": info["TD"], 
-                        "Cant": cant_final, 
-                        "Inicio": st.session_state.hora_ref, 
-                        "Llegada": h_llegada, 
-                        "Minutos": minutos
+                        "Fecha": fecha_str, "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre, 
+                        "Empresa": empresa, "Ciudad": ciudad, "Producto": producto, "Tienda_O": info["TO"], 
+                        "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"], "Cant": cant_final, 
+                        "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos
                     }
                     
-                    # Añadir al historial local para la tabla (incluyendo Fecha)
                     st.session_state.historial_datos.insert(0, {
-                        "Fecha": fecha_str,
-                        "Hora": h_llegada,
-                        "Producto": producto,
-                        "Recoge": info["TO"],
-                        "Entrega": info["TD"],
-                        "Cant": cant_final,
-                        "Minutos": minutos
+                        "Fecha": fecha_str, "Hora": h_llegada, "Producto": producto, 
+                        "Recoge": info["TO"], "Entrega": info["TD"], "Cant": cant_final, "Minutos": minutos
                     })
                     
                     try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
@@ -182,15 +163,17 @@ if st.session_state.cedula and st.session_state.nombre:
                     
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
-                    # Se incluye 's_emp' para que se reinicie el selector de Empresa
+                    
+                    # LIMPIEZA TOTAL: Borra las llaves del estado para forzar el reinicio visual
                     for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
-                        if k in st.session_state: del st.session_state[k]
+                        if k in st.session_state:
+                            st.session_state[k] = "--" if "s_" in k else None # Forzar valor por defecto
+                            del st.session_state[k]
                     
                     st.success(f"Enviado: {cant_final} unidades. Hora base: {h_llegada}")
-                    time.sleep(1.5)
+                    time.sleep(1.2)
                     st.rerun()
 
-    # --- TABLA DE HISTORIAL ---
     if st.session_state.historial_datos:
         st.markdown("---")
         st.subheader("📋 Mis entregas de hoy")
