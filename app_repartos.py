@@ -44,6 +44,7 @@ if "hor" in params: st.session_state.hora_ref = params["hor"]
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
+if 'historial' not in st.session_state: st.session_state.historial = []
 
 def actualizar_url():
     st.query_params.update({
@@ -130,7 +131,6 @@ if st.session_state.cedula and st.session_state.nombre:
                 col_e, col_m = st.columns(2)
                 ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0)
                 med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0)
-                # Lógica de unificación decimal (10 enteros + 5 medios = 12.5)
                 cant_final = float(ent) + (float(med) * 0.5)
             else:
                 cant_final = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -163,6 +163,14 @@ if st.session_state.cedula and st.session_state.nombre:
                         "Minutos": minutos
                     }
                     
+                    # Guardar en Historial local
+                    st.session_state.historial.insert(0, {
+                        "Hora": h_llegada,
+                        "Destino": info["TD"],
+                        "Cant": cant_final,
+                        "Prod": producto
+                    })
+                    
                     try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                     except: pass 
                     
@@ -173,3 +181,11 @@ if st.session_state.cedula and st.session_state.nombre:
                     st.success(f"Enviado: {cant_final} unidades. Hora base: {h_llegada}")
                     time.sleep(1.5)
                     st.rerun()
+
+    # --- SECCIÓN DE HISTORIAL VISUAL ---
+    if st.session_state.historial:
+        st.markdown("---")
+        st.subheader("📋 Mis entregas de hoy")
+        for item in st.session_state.historial:
+            with st.container():
+                st.write(f"🕒 **{item['Hora']}** | 📦 {item['Prod']} | 🏠 {item['Destino']} | **Cant: {item['Cant']}**")
