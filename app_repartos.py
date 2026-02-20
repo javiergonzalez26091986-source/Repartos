@@ -44,6 +44,7 @@ if "hor" in params: st.session_state.hora_ref = params["hor"]
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
+# Persistencia del historial para la tabla
 if 'historial_datos' not in st.session_state: st.session_state.historial_datos = []
 
 def actualizar_url():
@@ -141,6 +142,7 @@ if st.session_state.cedula and st.session_state.nombre:
                     st.warning("La cantidad debe ser mayor a 0")
                 else:
                     ahora = datetime.now(col_tz)
+                    fecha_str = ahora.strftime("%d/%m/%Y")
                     h_llegada = ahora.strftime("%H:%M")
                     t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
                     t_fin = datetime.strptime(h_llegada, "%H:%M")
@@ -148,7 +150,7 @@ if st.session_state.cedula and st.session_state.nombre:
                     if minutos < 0: minutos += 1440
                     
                     payload = {
-                        "Fecha": ahora.strftime("%d/%m/%Y"), 
+                        "Fecha": fecha_str, 
                         "Cedula": st.session_state.cedula, 
                         "Mensajero": st.session_state.nombre, 
                         "Empresa": empresa, 
@@ -164,8 +166,9 @@ if st.session_state.cedula and st.session_state.nombre:
                         "Minutos": minutos
                     }
                     
-                    # Añadir al historial local antes de limpiar selectores
+                    # Añadir al historial local para la tabla (incluyendo Fecha)
                     st.session_state.historial_datos.insert(0, {
+                        "Fecha": fecha_str,
                         "Hora": h_llegada,
                         "Producto": producto,
                         "Recoge": info["TO"],
@@ -179,13 +182,15 @@ if st.session_state.cedula and st.session_state.nombre:
                     
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
+                    # Se incluye 's_emp' para que se reinicie el selector de Empresa
                     for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
                         if k in st.session_state: del st.session_state[k]
+                    
                     st.success(f"Enviado: {cant_final} unidades. Hora base: {h_llegada}")
                     time.sleep(1.5)
                     st.rerun()
 
-    # --- TABLA DE HISTORIAL (Al final del código) ---
+    # --- TABLA DE HISTORIAL ---
     if st.session_state.historial_datos:
         st.markdown("---")
         st.subheader("📋 Mis entregas de hoy")
