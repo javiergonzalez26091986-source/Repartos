@@ -44,7 +44,7 @@ if "hor" in params: st.session_state.hora_ref = params["hor"]
 if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
-if 'historial_lista' not in st.session_state: st.session_state.historial_lista = []
+if 'historial_datos' not in st.session_state: st.session_state.historial_datos = []
 
 def actualizar_url():
     st.query_params.update({
@@ -131,6 +131,7 @@ if st.session_state.cedula and st.session_state.nombre:
                 col_e, col_m = st.columns(2)
                 ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0)
                 med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0)
+                # Lógica de unificación decimal (10 enteros + 5 medios = 12.5)
                 cant_final = float(ent) + (float(med) * 0.5)
             else:
                 cant_final = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
@@ -146,28 +147,32 @@ if st.session_state.cedula and st.session_state.nombre:
                     minutos = int((t_fin - t_ini).total_seconds() / 60)
                     if minutos < 0: minutos += 1440
                     
-                    registro = {
+                    payload = {
                         "Fecha": ahora.strftime("%d/%m/%Y"), 
-                        "Ciudad": ciudad,
-                        "Empresa": empresa,
-                        "Producto": producto,
-                        "Origen": info["TO"],
-                        "Destino": info["TD"],
-                        "Cant": cant_final,
-                        "Inicio": st.session_state.hora_ref,
-                        "Llegada": h_llegada,
+                        "Cedula": st.session_state.cedula, 
+                        "Mensajero": st.session_state.nombre, 
+                        "Empresa": empresa, 
+                        "Ciudad": ciudad, 
+                        "Producto": producto, 
+                        "Tienda_O": info["TO"], 
+                        "Cod_O": info["CO"], 
+                        "Cod_D": info["CD"], 
+                        "Tienda_D": info["TD"], 
+                        "Cant": cant_final, 
+                        "Inicio": st.session_state.hora_ref, 
+                        "Llegada": h_llegada, 
                         "Minutos": minutos
                     }
                     
-                    # Guardar para el historial visual (Tabla)
-                    st.session_state.historial_lista.insert(0, registro)
-                    
-                    # Payload para el Drive (incluye cédula y nombre)
-                    payload = registro.copy()
-                    payload["Cedula"] = st.session_state.cedula
-                    payload["Mensajero"] = st.session_state.nombre
-                    payload["Cod_O"] = info["CO"]
-                    payload["Cod_D"] = info["CD"]
+                    # Añadir al historial local antes de limpiar selectores
+                    st.session_state.historial_datos.insert(0, {
+                        "Hora": h_llegada,
+                        "Producto": producto,
+                        "Recoge": info["TO"],
+                        "Entrega": info["TD"],
+                        "Cant": cant_final,
+                        "Minutos": minutos
+                    })
                     
                     try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
                     except: pass 
@@ -177,14 +182,12 @@ if st.session_state.cedula and st.session_state.nombre:
                     for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
                         if k in st.session_state: del st.session_state[k]
                     st.success(f"Enviado: {cant_final} unidades. Hora base: {h_llegada}")
-                    time.sleep(1.2)
+                    time.sleep(1.5)
                     st.rerun()
 
-    # --- HISTORIAL EN FORMATO TABLA ---
-    if st.session_state.historial_lista:
+    # --- TABLA DE HISTORIAL (Al final del código) ---
+    if st.session_state.historial_datos:
         st.markdown("---")
-        st.subheader("📋 Resumen de Entregas Realizadas")
-        df_hist = pd.DataFrame(st.session_state.historial_lista)
-        # Reordenar columnas para que se vea bien en móvil
-        cols_mostrar = ["Llegada", "Destino", "Cant", "Producto", "Ciudad", "Minutos"]
-        st.dataframe(df_hist[cols_mostrar], use_container_width=True, hide_index=True)
+        st.subheader("📋 Mis entregas de hoy")
+        df_hist = pd.DataFrame(st.session_state.historial_datos)
+        st.dataframe(df_hist, use_container_width=True, hide_index=True)
