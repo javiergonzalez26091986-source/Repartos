@@ -9,7 +9,7 @@ import time
 col_tz = pytz.timezone('America/Bogota')
 st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 
-# --- ESTILOS CSS (Colores Verde y Rojo) ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -18,13 +18,11 @@ st.markdown("""
     .stAppDeployButton {display:none;}
     div[data-testid="stToolbar"] { visibility: hidden !important; }
     
-    /* Botón ENVIAR REGISTRO -> VERDE */
     div.stButton > button:first-child[kind="primary"] {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
         color: white !important;
     }
-    /* Botón FINALIZAR (Arriba) -> ROJO */
     .stColumn div.stButton > button[kind="primary"] {
         background-color: #dc3545 !important;
         border-color: #dc3545 !important;
@@ -35,7 +33,7 @@ st.markdown("""
 
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
-# --- PERSISTENCIA ---
+# --- PERSISTENCIA Y CONTADOR DE REINICIO ---
 params = st.query_params
 if "ced" in params: st.session_state.cedula = params["ced"]
 if "nom" in params: st.session_state.nombre = params["nom"]
@@ -45,6 +43,7 @@ if 'cedula' not in st.session_state: st.session_state.cedula = ""
 if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 if 'historial_datos' not in st.session_state: st.session_state.historial_datos = []
+if 'reset_counter' not in st.session_state: st.session_state.reset_counter = 0
 
 def actualizar_url():
     st.query_params.update({
@@ -53,7 +52,7 @@ def actualizar_url():
         "hor": st.session_state.hora_ref
     })
 
-# --- CABECERA: TÍTULO Y BOTÓN FINALIZAR ---
+# --- CABECERA ---
 head_l, head_r = st.columns([3, 1])
 with head_l:
     st.title("🛵 Control de entregas SERGEM")
@@ -62,7 +61,6 @@ with head_r:
     if st.button("🏁 FINALIZAR ENTREGAS", type="primary", use_container_width=True):
         st.session_state.confirmar_cierre = True
 
-# --- LÓGICA DE PREGUNTA / CONFIRMACIÓN ---
 if st.session_state.get('confirmar_cierre'):
     st.error("⚠️ **¿ESTÁ SEGURO DE FINALIZAR EL DÍA?**")
     cc1, cc2 = st.columns(2)
@@ -99,42 +97,43 @@ if st.session_state.cedula and st.session_state.nombre:
         TIENDAS_POLLOS = {'CALI': {'Super Inter Popular': '4210', 'Super Inter Guayacanes': '4206', 'Super Inter Unico Salomia': '4218', 'Super Inter Villa Colombia': '4215', 'Super Inter El Sembrador': '4216', 'Super Inter Siloe': '4223', 'Super Inter San Fernando': '4232', 'Super Inter Buenos Aires': '4262', 'Super Inter Valdemoro': '4233', 'Carulla la Maria': '4781', 'Super Inter Express Av. Sexta': '4212', 'Super Inter Pasarela': '4214', 'Super Inter Primavera': '4271', 'Super Inter Independencia': '4261', 'Carulla Pasoancho': '4799', 'éxito Cra Octava (L)': '650'}, 'MEDELLIN': {'éxito express Ciudad del Rio': '197', 'Carulla Sao Paulo': '341', 'Carulla express Villa Grande': '452', 'Surtimax Centro de la Moda': '516', 'Surtimax Trianon': '745', 'Surtimax San Javier Metro': '758', 'éxito Indiana Mall': '4042', 'éxito San Javier': '4067', 'éxito Gardel': '4070', 'Surtimax Camino Verde': '4381', 'Surtimax Caldas': '4534', 'Surtimax Pilarica': '4557', 'Carulla express Padre Marianito': '4664', 'Carulla express EDS la Sierra': '4665', 'Carulla express Parque Poblado': '4669', 'Carulla express la América': '4776', 'Carulla express Nutibara': '4777', 'Carulla express Laureles': '4778', 'Carulla express Divina Eucaristia': '4829', 'Carulla express Loma Escobero': '4878'}, 'BOGOTA': {'éxito express Embajada': '110', 'éxito express Colseguros (CAF)': '301', 'Surtimax Brasil Bosa': '311', 'Surtimax Casa Blanca (CAF)': '434', 'Surtimax la Española': '449', 'Surtimax San Antonio': '450', 'éxito express Bima': '459', 'Surtimax Barrancas': '467', 'Carulla express Cedritos': '468', 'Surtimax Nueva Roma': '470', 'Surtimax Tibabuyes': '473', 'Surtimax Trinitaria': '474', 'Surtimax la Gloria': '481', 'Surtimax San Fernando': '511', 'Carulla calle 147': '549', 'éxito Plaza Bolivar': '558', 'Surtimax Tocancipá': '573', 'Surtimax San Mateo': '575', 'Surtimax Cajicá': '576', 'Surtimax Sopó': '577', 'Surtimax Compartir Soacha': '579', 'Surtimax Santa Rita': '623', 'éxito express Cra 15 con 100': '657', 'Surtimax la Calera': '703', 'Surtimax Yanguas': '709', 'Surtimax el Socorro': '768', 'Surtimax el Recreo Bosa': '781', 'Carulla la Calera': '886', 'éxito Primavera calle 80': '4068', 'éxito Parque Fontibon': '4069', 'éxito Pradilla': '4071', 'éxito Ciudadel': '4082', 'éxito express Cra 24 83-22': '4187', 'Surtimax Chapinero': '4523', 'Surtimax Lijaca': '4524', 'Surtimax Quiroga': '4527', 'Surtimax Suba Bilbao': '4533', 'Surtimax Santa Isabel': '4539', 'Carulla BACATA': '4813', 'Carulla SMARTMARKET': '4814', 'Carulla LA PRADERA DE POTOSÍ': '4818', 'Carulla EXPRESS C109 C14': '4822', 'Carulla EXPRESS SIBERIA': '4825', 'Carulla EXPRESS CALLE 90': '4828', 'Carulla EXPRESS PONTEVEDRA': '4836', 'Carulla EXPRESS CARRERA 7': '4839', 'Carulla EXPRESS SALITRE': '4875', 'Carulla EXPRESS CORFERIAS': '4876'}}
         TIENDAS_PANADERIA = {'CALI': {'CARULLA CIUDAD JARDIN': '2732540', 'CARULLA PANCE': '2594540', 'CARULLA HOLGUINES': '4219540', 'CARULLA PUNTO VERDE': '4799540', 'CARULLA AV COLOMBIA': '4219540', 'CARULLA SAN FERNANDO': '2595540', 'CARULLA LA MARIA': '4781540', 'ÉXITO UNICALI': '2054056', 'ÉXITO JAMUNDI': '2054049', 'ÉXITO LA FLORA': '2054540'}, 'MANIZALES': {'CARULLA CABLE PLAZA': '2334540', 'ÉXITO MANIZALES': '383', 'CARULLA SAN MARCEL': '4805', 'SUPERINTER CRISTO REY': '4301540', 'SUPERINTER ALTA SUIZA': '4302540', 'SUPERINTER SAN SEBASTIAN': '4303540', 'SUPERINTER MANIZALES CENTRO': '4273540', 'SUPERINTER CHIPRE': '4279540', 'SUPERINTER VILLA PILAR': '4280540'}}
 
-        # Selectores
+        # Selectores con llave dinámica para forzar reinicio total
+        r = st.session_state.reset_counter
         f1, f2 = st.columns(2)
-        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key="s_ciu")
+        with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key=f"s_ciu_{r}")
         with f2: 
             ops_prod = ["PANADERIA"] if ciudad == "MANIZALES" else (["POLLOS"] if ciudad in ["MEDELLIN", "BOGOTA"] else ["POLLOS", "PANADERIA"])
-            producto = st.radio("📦 Producto:", ops_prod, horizontal=True, key="s_prod")
+            producto = st.radio("📦 Producto:", ops_prod, horizontal=True, key=f"s_prod_{r}")
         
         opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"] if ciudad == "CALI" else ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
-        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key="s_emp")
+        empresa = st.selectbox("🏢 Empresa:", opciones_empresa, key=f"s_emp_{r}")
 
         info = None
         if ciudad != "--" and empresa != "--":
             if empresa == "CAÑAVERAL":
                 c1c, c2c = st.columns(2)
-                with c1c: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key="co")
-                with c2c: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key="cd")
+                with c1c: co = st.selectbox("📦 Origen:", ["--"] + sorted(LISTA_CANAVERAL), key=f"co_{r}")
+                with c2c: cd = st.selectbox("🏠 Destino:", ["--"] + sorted(LISTA_CANAVERAL), key=f"cd_{r}")
                 if co != "--" and cd != "--": info = {"TO": co, "CO": "CAN", "TD": cd, "CD": "CAN"}
             else:
                 dic = TIENDAS_PANADERIA.get(ciudad, {}) if producto == "PANADERIA" else TIENDAS_POLLOS.get(ciudad, {})
                 if producto == "PANADERIA":
                     p1, p2 = st.columns(2)
-                    t_o = p1.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key="to")
-                    t_d = p2.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key="td")
+                    t_o = p1.selectbox("📦 Recoge en:", ["--"] + sorted(list(dic.keys())), key=f"to_{r}")
+                    t_d = p2.selectbox("🏠 Entrega en:", ["--"] + sorted(list(dic.keys())), key=f"td_{r}")
                     if t_o != "--" and t_d != "--": info = {"TO": t_o, "CO": dic[t_o], "TD": t_d, "CD": dic[t_d]}
                 else:
-                    t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
+                    t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key=f"ct_{r}")
                     if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
         if info:
             if producto == "POLLOS":
                 col_e, col_m = st.columns(2)
-                ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0)
-                med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0)
+                ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0, key=f"ent_{r}")
+                med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0, key=f"med_{r}")
                 cant_final = float(ent) + (float(med) * 0.5)
             else:
-                cant_final = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
+                cant_final = st.number_input("Cantidad:", min_value=1, step=1, key=f"ccant_{r}")
 
             if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 if cant_final <= 0:
@@ -166,9 +165,8 @@ if st.session_state.cedula and st.session_state.nombre:
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
                     
-                    # Limpieza para que Empresa y demás vuelvan a vacío
-                    for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
-                        if k in st.session_state: del st.session_state[k]
+                    # INCREMENTO DEL CONTADOR: Esto obliga a todos los selectores a resetearse a "--"
+                    st.session_state.reset_counter += 1
                     
                     st.success(f"Enviado. Nueva hora base: {h_llegada}")
                     time.sleep(1.2)
