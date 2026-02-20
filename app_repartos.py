@@ -125,24 +125,51 @@ if st.session_state.cedula and st.session_state.nombre:
                     t_sel = st.selectbox("🏪 Tienda Destino:", ["--"] + sorted(list(dic.keys())), key="ct")
                     if t_sel != "--": info = {"TO": "BASE", "CO": "BASE", "TD": t_sel, "CD": dic[t_sel]}
 
-        # EL BOTÓN SOLO APARECE SI INFO NO ES NONE
         if info:
-            cant = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
-            if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
-                ahora = datetime.now(col_tz)
-                h_llegada = ahora.strftime("%H:%M")
-                t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
-                t_fin = datetime.strptime(h_llegada, "%H:%M")
-                minutos = int((t_fin - t_ini).total_seconds() / 60)
-                if minutos < 0: minutos += 1440
-                payload = {"Fecha": ahora.strftime("%d/%m/%Y"), "Cedula": st.session_state.cedula, "Mensajero": st.session_state.nombre, "Empresa": empresa, "Ciudad": ciudad, "Producto": producto, "Tienda_O": info["TO"], "Cod_O": info["CO"], "Cod_D": info["CD"], "Tienda_D": info["TD"], "Cant": int(cant), "Inicio": st.session_state.hora_ref, "Llegada": h_llegada, "Minutos": minutos}
-                try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
-                except: pass 
-                st.session_state.hora_ref = h_llegada
-                actualizar_url()
-                for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
-                    if k in st.session_state: del st.session_state[k]
-                st.success(f"Enviado. Nueva hora base: {h_llegada}")
-                time.sleep(1.5)
-                st.rerun()
+            if producto == "POLLOS":
+                col_e, col_m = st.columns(2)
+                ent = col_e.number_input("Pollos Enteros:", min_value=0, step=1, value=0)
+                med = col_m.number_input("Medios Pollos:", min_value=0, step=1, value=0)
+                # Lógica de unificación decimal (10 enteros + 5 medios = 12.5)
+                cant_final = float(ent) + (float(med) * 0.5)
+            else:
+                cant_final = st.number_input("Cantidad:", min_value=1, step=1, key="ccant")
 
+            if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
+                if cant_final <= 0:
+                    st.warning("La cantidad debe ser mayor a 0")
+                else:
+                    ahora = datetime.now(col_tz)
+                    h_llegada = ahora.strftime("%H:%M")
+                    t_ini = datetime.strptime(st.session_state.hora_ref, "%H:%M")
+                    t_fin = datetime.strptime(h_llegada, "%H:%M")
+                    minutos = int((t_fin - t_ini).total_seconds() / 60)
+                    if minutos < 0: minutos += 1440
+                    
+                    payload = {
+                        "Fecha": ahora.strftime("%d/%m/%Y"), 
+                        "Cedula": st.session_state.cedula, 
+                        "Mensajero": st.session_state.nombre, 
+                        "Empresa": empresa, 
+                        "Ciudad": ciudad, 
+                        "Producto": producto, 
+                        "Tienda_O": info["TO"], 
+                        "Cod_O": info["CO"], 
+                        "Cod_D": info["CD"], 
+                        "Tienda_D": info["TD"], 
+                        "Cant": cant_final, 
+                        "Inicio": st.session_state.hora_ref, 
+                        "Llegada": h_llegada, 
+                        "Minutos": minutos
+                    }
+                    
+                    try: requests.post(URL_GOOGLE_SCRIPT, json=payload, timeout=15)
+                    except: pass 
+                    
+                    st.session_state.hora_ref = h_llegada
+                    actualizar_url()
+                    for k in ['s_ciu', 's_emp', 'co', 'cd', 'ct', 'to', 'td', 'ccant']:
+                        if k in st.session_state: del st.session_state[k]
+                    st.success(f"Enviado: {cant_final} unidades. Hora base: {h_llegada}")
+                    time.sleep(1.5)
+                    st.rerun()
