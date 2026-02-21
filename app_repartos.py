@@ -44,7 +44,6 @@ if 'nombre' not in st.session_state: st.session_state.nombre = ""
 if 'hora_ref' not in st.session_state: st.session_state.hora_ref = ""
 if 'historial_datos' not in st.session_state: st.session_state.historial_datos = []
 if 'reset_counter' not in st.session_state: st.session_state.reset_counter = 0
-if 'enviando' not in st.session_state: st.session_state.enviando = False
 
 def actualizar_url():
     st.query_params.update({
@@ -52,9 +51,6 @@ def actualizar_url():
         "nom": st.session_state.nombre,
         "hor": st.session_state.hora_ref
     })
-
-def bloquear_boton():
-    st.session_state.enviando = True
 
 # --- CABECERA ---
 head_l, head_r = st.columns([3, 1])
@@ -139,13 +135,9 @@ if st.session_state.cedula and st.session_state.nombre:
             else:
                 cant_final = st.number_input("Cantidad:", min_value=1, step=1, key=f"ccant_{r}")
 
-            # Lógica de botón con bloqueo
-            texto_boton = "ENVIANDO... ⏳" if st.session_state.enviando else "ENVIAR REGISTRO ✅"
-            if st.button(texto_boton, use_container_width=True, type="primary", on_click=bloquear_boton, disabled=st.session_state.enviando):
+            if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                 if cant_final <= 0:
                     st.warning("La cantidad debe ser mayor a 0")
-                    st.session_state.enviando = False
-                    st.rerun()
                 else:
                     ahora = datetime.now(col_tz)
                     fecha_str = ahora.strftime("%d/%m/%Y")
@@ -173,9 +165,8 @@ if st.session_state.cedula and st.session_state.nombre:
                     st.session_state.hora_ref = h_llegada
                     actualizar_url()
                     
-                    # Reinicio de estado
+                    # INCREMENTO DEL CONTADOR: Esto obliga a todos los selectores a resetearse a "--"
                     st.session_state.reset_counter += 1
-                    st.session_state.enviando = False
                     
                     st.success(f"Enviado. Nueva hora base: {h_llegada}")
                     time.sleep(1.2)
