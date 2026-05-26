@@ -16,11 +16,18 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Ocultar la barra superior completa moderna de Streamlit (Manage app, Share, etc.) */
-    div[data-testid="stStatusWidget"] {visibility: hidden;}
+    /* Ocultar barra superior y el botón rebelde de Manage App */
     [data-testid="stAppHeader"] {display: none !important;}
     div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
-    .stAppDeployButton {display:none !important;}
+    footer {visibility: hidden;}
+    
+    /* Forzar la desaparición de los botones de despliegue/administración */
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stAppHeader"] > div:first-child {display: none !important;}
+    
+    /* Si estás viéndolo tú como administrador, esto oculta el bloque superior izquierdo */
+    header {display: none !important;}
+    iframe[title="streamlitApp"] {margin-top: -50px;}
     
     /* Ajustar el margen superior para que no quede un hueco vacío tras borrar la barra */
     .block-container {padding-top: 2rem !important;}
@@ -38,6 +45,7 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
 # --- PERSISTENCIA Y CONTADOR DE REINICIO ---
