@@ -12,12 +12,20 @@ st.set_page_config(page_title="Control de entregas SERGEM", layout="wide")
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
+    /* Ocultar el menú antiguo y el pie de página */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stAppDeployButton {display:none;}
-    div[data-testid="stToolbar"] { visibility: hidden !important; }
     
+    /* Ocultar la barra superior completa moderna de Streamlit (Manage app, Share, etc.) */
+    div[data-testid="stStatusWidget"] {visibility: hidden;}
+    [data-testid="stAppHeader"] {display: none !important;}
+    div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
+    .stAppDeployButton {display:none !important;}
+    
+    /* Ajustar el margen superior para que no quede un hueco vacío tras borrar la barra */
+    .block-container {padding-top: 2rem !important;}
+    
+    /* Estilos de tus botones */
     div.stButton > button:first-child[kind="primary"] {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
@@ -30,7 +38,6 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
-
 URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzLjiRvoIRnFkjLmHoMVTv-V_zb6xiX3tbakP9b8YWlILKpIn44r8q5-ojqG32NApMz/exec"
 
 # --- PERSISTENCIA Y CONTADOR DE REINICIO ---
