@@ -153,7 +153,7 @@ if st.session_state.cedula and st.session_state.nombre:
             else:
                 cant_final = st.number_input("Cantidad:", min_value=1, step=1, key=f"ccant_{r}")
 
-            # MODIFICACIÓN SOLICITADA: CONTROL DE ENVÍO
+            # CONTROL DE ENVÍO
             if not st.session_state.bloqueo_envio:
                 if st.button("ENVIAR REGISTRO ✅", use_container_width=True, type="primary"):
                     if cant_final <= 0:
