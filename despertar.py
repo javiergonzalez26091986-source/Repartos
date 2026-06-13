@@ -9,7 +9,7 @@ def despertar_portal():
         page = browser.new_workbook() if hasattr(browser, 'new_workbook') else browser.new_page()
         
         # URL
-        url = "https://conexion-pagos-isp-aujjnccwxzvi4xqpmefrj2.streamlit.app/" 
+        url = "https://repartos-mzaur5xsptkmmbaudp7kqw.streamlit.app/" 
         
         print(f"Visitando el portal: {url}")
         page.goto(url)
