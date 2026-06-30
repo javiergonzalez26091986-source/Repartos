@@ -16,7 +16,7 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Ocultar barra superior y el botón rebelde de Manage App */
+    /* Ocultar barra superior y el botón de Manage App */
     [data-testid="stAppHeader"] {display: none !important;}
     div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     footer {visibility: hidden;}
@@ -25,14 +25,14 @@ st.markdown("""
     .stAppDeployButton {display: none !important;}
     [data-testid="stAppHeader"] > div:first-child {display: none !important;}
     
-    /* Si estás viéndolo tú como administrador, esto oculta el bloque superior izquierdo */
+    /* Esto oculta el bloque superior izquierdo */
     header {display: none !important;}
     iframe[title="streamlitApp"] {margin-top: -50px;}
     
     /* Ajustar el margen superior para que no quede un hueco vacío tras borrar la barra */
     .block-container {padding-top: 2rem !important;}
     
-    /* Estilos de tus botones */
+    /* Estilos de botones */
     div.stButton > button:first-child[kind="primary"] {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
