@@ -1,26 +1,21 @@
-import time
-from playwright.sync_api import sync_playwright
+import requests
 
 def despertar_portal():
-    print("Iniciando navegador virtual en la nube...")
-    with sync_playwright() as p:
-        # Lanzamos un navegador Chromium invisible (headless)
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_workbook() if hasattr(browser, 'new_workbook') else browser.new_page()
+    url = "https://repartos-mzaur5xsptkmmbaudp7kqw.streamlit.app/"
+    print(f"Haciendo ping al portal: {url}...")
+    
+    try:
+        # Configuramos un timeout de 30 segundos por si el servidor de Streamlit 
+        # está profundamente dormido y tarda en arrancar
+        response = requests.get(url, timeout=30)
         
-        # URL
-        url = "https://repartos-mzaur5xsptkmmbaudp7kqw.streamlit.app/" 
-        
-        print(f"Visitando el portal: {url}")
-        page.goto(url)
-        
-        # Esperamos 20 segundos para darle tiempo al servidor de Streamlit de despertar por completo
-        print("Esperando a que cargue la interfaz completa...")
-        time.sleep(20)
-        
-        # Tomamos el título de la página para confirmar que cargó con éxito
-        print(f"Portal despierto. Título de la app: '{page.title()}'")
-        browser.close()
+        if response.status_code == 200:
+            print("¡Portal despertado con éxito! El servidor está activo (Status: 200).")
+        else:
+            print(f"El portal respondió con un código inusual: {response.status_code}")
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Se produjo un error al intentar despertar el portal: {e}")
 
 if __name__ == "__main__":
     despertar_portal()
