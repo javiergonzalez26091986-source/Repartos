@@ -120,7 +120,15 @@ if st.session_state.cedula and st.session_state.nombre:
         f1, f2 = st.columns(2)
         with f1: ciudad = st.selectbox("📍 Ciudad:", ["--", "CALI", "MANIZALES", "MEDELLIN", "BOGOTA"], key=f"s_ciu_{r}")
         with f2: 
-            ops_prod = ["PANADERIA"] if ciudad == "MANIZALES" else (["POLLOS"] if ciudad in ["MEDELLIN", "BOGOTA"] else ["POLLOS", "PANADERIA"])
+            if ciudad == "MANIZALES":
+                ops_prod = ["PANADERIA"]
+            elif ciudad == "BOGOTA":
+                ops_prod = ["POLLOS", "LECHONAS"]
+            elif ciudad == "MEDELLIN":
+                ops_prod = ["POLLOS"]
+            else:
+                ops_prod = ["POLLOS", "PANADERIA"]
+            
             producto = st.radio("📦 Producto:", ops_prod, horizontal=True, key=f"s_prod_{r}")
         
         opciones_empresa = ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER", "CAÑAVERAL"] if ciudad == "CALI" else ["--", "EXITO-CARULLA-SURTIMAX-SUPERINTER"]
